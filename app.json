@@ -1,0 +1,68 @@
+{
+  "expo": {
+    "name": "Woofy",
+    "slug": "woofy",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#2C4A3E"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.woofy.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Woofy uses your location to find dogs nearby.",
+        "NSCameraUsageDescription": "Woofy needs camera access to add photos of your dog.",
+        "NSPhotoLibraryUsageDescription": "Woofy needs photo library access to add photos of your dog."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#2C4A3E"
+      },
+      "package": "com.woofy.app",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#E8734A"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Woofy uses your location to find dogs nearby."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Woofy needs photo library access to add photos of your dog.",
+          "cameraPermission": "Woofy needs camera access to add photos of your dog."
+        }
+      ]
+    ]
+  }
+}
