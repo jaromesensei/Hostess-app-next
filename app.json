@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "Woofy",
+    "slug": "woofy",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#FF6B35"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.woofy.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#FF6B35"
+      },
+      "package": "com.woofy.app"
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}
