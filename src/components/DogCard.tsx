@@ -123,14 +123,14 @@ export const DogCard: React.FC<DogCardProps> = ({
         />
 
         {/* Gradient overlay — multiple semi-transparent layers to simulate gradient */}
-        <View style={styles.gradientOverlay} pointerEvents="none">
+        <View style={[styles.gradientOverlay, { pointerEvents: 'none' } as any]}>
           <View style={[styles.gradientLayer, { opacity: 0.15 }]} />
           <View style={[styles.gradientLayer, { opacity: 0.25 }]} />
           <View style={[styles.gradientLayer, { opacity: 0.45 }]} />
         </View>
 
         {/* Text on image */}
-        <View style={styles.imageTextContainer} pointerEvents="none">
+        <View style={[styles.imageTextContainer, { pointerEvents: 'none' } as any]}>
           <WText style={styles.dogNameOnImage}>{dog.name}</WText>
           <WText style={styles.dogMetaOnImage}>
             {dog.breed} · {getAgeString(dog.birthDate)} · {distance}

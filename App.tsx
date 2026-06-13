@@ -1,3 +1,7 @@
+// Must be the very first import — polyfills browser globals before any
+// library code runs (DOMRect, DOMPoint, DOMMatrix for Hermes compatibility)
+import './src/polyfills';
+
 import React from 'react';
 import { useFonts } from 'expo-font';
 import { View, ActivityIndicator } from 'react-native';

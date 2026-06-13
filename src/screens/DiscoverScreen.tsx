@@ -180,9 +180,9 @@ const SwipeCard: React.FC<SwipeCardProps> = ({
           {
             transform: [{ scale: 0.95 }, { translateY: 8 }],
             zIndex: 0,
-          },
+            pointerEvents: 'none',
+          } as any,
         ]}
-        pointerEvents="none"
       >
         <Image
           source={{ uri: dog.photos[0] }}
@@ -206,16 +206,14 @@ const SwipeCard: React.FC<SwipeCardProps> = ({
 
         {/* Right swipe overlay */}
         <Animated.View
-          style={[styles.swipeOverlay, styles.swipeOverlayRight, rightOverlayStyle]}
-          pointerEvents="none"
+          style={[styles.swipeOverlay, styles.swipeOverlayRight, rightOverlayStyle, { pointerEvents: 'none' } as any]}
         >
           <WText style={styles.swipeLabel}>נפגשים! 🐾</WText>
         </Animated.View>
 
         {/* Left swipe overlay */}
         <Animated.View
-          style={[styles.swipeOverlay, styles.swipeOverlayLeft, leftOverlayStyle]}
-          pointerEvents="none"
+          style={[styles.swipeOverlay, styles.swipeOverlayLeft, leftOverlayStyle, { pointerEvents: 'none' } as any]}
         >
           <WText style={styles.swipeLabel}>דילוג</WText>
         </Animated.View>
@@ -493,7 +491,7 @@ export const DiscoverScreen: React.FC = () => {
             <>
               {/* Next card (behind) */}
               {nextDog && (
-                <View style={styles.cardWrapper} pointerEvents="none">
+                <View style={[styles.cardWrapper, { pointerEvents: 'none' } as any]}>
                   <SwipeCard
                     key={`next-${nextDog.id}`}
                     dog={nextDog}
