@@ -28,6 +28,7 @@ import { getAgeString } from '@/data/mockDogs';
 import { generateId } from '@/services/storage';
 import { notificationService } from '@/services/notifications';
 import { HealthRecord, Reminder } from '@/types';
+import { WoofyProModal } from '@/screens/WoofyProModal';
 
 // ─── Health Record Types ────────────────────────────────────────────────────
 
@@ -121,6 +122,9 @@ export const MyDogScreen: React.FC = () => {
   const [hNext,    setHNext]    = useState('');
   const [hNotes,   setHNotes]   = useState('');
   const [hError,   setHError]   = useState('');
+
+  // ── Pro modal state ──────
+  const [showPro, setShowPro] = useState(false);
 
   // ── Reminder modal state ──
   const [showReminderModal, setShowReminderModal] = useState(false);
@@ -406,6 +410,35 @@ export const MyDogScreen: React.FC = () => {
             />
           ))}
         </ScrollView>
+
+        {/* ═══ WOOFY PRO BANNER ═══ */}
+        <TouchableOpacity
+          style={styles.proBanner}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            setShowPro(true);
+          }}
+          activeOpacity={0.88}
+        >
+          <LinearGradient
+            colors={['#2C4A3E', '#1A2E28']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.proBannerGradient}
+          >
+            <WText style={styles.proBannerCrown}>👑</WText>
+            <View style={styles.proBannerText}>
+              <View style={styles.proBannerTitleRow}>
+                <WText style={styles.proBannerTitle}>Woofy Pro</WText>
+                <View style={styles.proBannerTag}>
+                  <WText style={styles.proBannerTagText}>PRO</WText>
+                </View>
+              </View>
+              <WText style={styles.proBannerSub}>פתח 7 ימי ניסיון חינמי ←</WText>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.5)" />
+          </LinearGradient>
+        </TouchableOpacity>
 
         {/* ═══ DOG SWITCHER ═══ */}
         {allDogs.length > 1 && (
@@ -757,6 +790,9 @@ export const MyDogScreen: React.FC = () => {
           <WButton label="שמור" onPress={handleSaveReminder} variant="primary" />
         </View>
       </WBottomSheet>
+
+      {/* ═══ WOOFY PRO MODAL ═══ */}
+      <WoofyProModal visible={showPro} onClose={() => setShowPro(false)} />
     </SafeAreaView>
   );
 };
@@ -1160,5 +1196,51 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+
+  // Woofy Pro banner
+  proBanner: {
+    marginHorizontal: Spacing.base,
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.sm,
+    borderRadius: Radius.medium,
+    overflow: 'hidden',
+    ...Shadow.medium,
+  },
+  proBannerGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.base,
+    paddingVertical: Spacing.md,
+    gap: Spacing.md,
+  },
+  proBannerCrown: { fontSize: 32 },
+  proBannerText: { flex: 1, gap: 2 },
+  proBannerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  proBannerTitle: {
+    fontFamily: FontFamily.displayBlack,
+    fontSize: FontSize.md,
+    color: Colors.white,
+  },
+  proBannerTag: {
+    backgroundColor: Colors.terra,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  proBannerTagText: {
+    fontFamily: FontFamily.displayBlack,
+    fontSize: 9,
+    color: Colors.white,
+    letterSpacing: 1.5,
+  },
+  proBannerSub: {
+    fontFamily: FontFamily.medium,
+    fontSize: FontSize.sm,
+    color: 'rgba(255,255,255,0.70)',
   },
 });
