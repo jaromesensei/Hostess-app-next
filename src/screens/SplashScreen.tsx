@@ -1,12 +1,5 @@
-import React, { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
-  runOnJS,
-} from 'react-native-reanimated';
+import React, { useEffect, useRef } from 'react';
+import { StyleSheet, View, Animated } from 'react-native';
 import * as ExpSplash from 'expo-splash-screen';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -19,18 +12,9 @@ type NavProp = NativeStackNavigationProp<RootStackParamList>;
 export const SplashScreen: React.FC = () => {
   const navigation = useNavigation<NavProp>();
 
-  const scale = useSharedValue(0);
-  const opacity = useSharedValue(0);
-  const textOpacity = useSharedValue(0);
-
-  const pawStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-    opacity: opacity.value,
-  }));
-
-  const textStyle = useAnimatedStyle(() => ({
-    opacity: textOpacity.value,
-  }));
+  const scale = useRef(new Animated.Value(0)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+  const textOpacity = useRef(new Animated.Value(0)).current;
 
   const handleNavigate = async () => {
     const done = await storage.isOnboardingComplete();
@@ -40,18 +24,17 @@ export const SplashScreen: React.FC = () => {
   useEffect(() => {
     ExpSplash.hideAsync();
 
-    // Animate paw in with spring
-    scale.value = withSpring(1, { damping: 12, stiffness: 120 });
-    opacity.value = withTiming(1, { duration: 600 });
+    Animated.parallel([
+      Animated.spring(scale, { toValue: 1, damping: 12, stiffness: 120, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 1, duration: 600, useNativeDriver: true }),
+    ]).start();
 
-    // Fade in text slightly after
     const t1 = setTimeout(() => {
-      textOpacity.value = withTiming(1, { duration: 500 });
+      Animated.timing(textOpacity, { toValue: 1, duration: 500, useNativeDriver: true }).start();
     }, 300);
 
-    // Navigate after 2 seconds
     const t2 = setTimeout(() => {
-      runOnJS(handleNavigate)();
+      handleNavigate();
     }, 2000);
 
     return () => {
@@ -62,9 +45,9 @@ export const SplashScreen: React.FC = () => {
 
   return (
     <View style={styles.root}>
-      <Animated.Text style={[styles.paw, pawStyle]}>🐾</Animated.Text>
-      <Animated.Text style={[styles.title, textStyle]}>Woofy</Animated.Text>
-      <Animated.Text style={[styles.tagline, textStyle]}>
+      <Animated.Text style={[styles.paw, { transform: [{ scale }], opacity }]}>🐾</Animated.Text>
+      <Animated.Text style={[styles.title, { opacity: textOpacity }]}>Woofy</Animated.Text>
+      <Animated.Text style={[styles.tagline, { opacity: textOpacity }]}>
         דע מה הכלב שלך מרגיש
       </Animated.Text>
     </View>

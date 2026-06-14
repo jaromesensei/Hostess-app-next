@@ -9,22 +9,9 @@ import {
   StyleSheet,
   Platform,
   Alert,
+  PanResponder,
+  Animated,
 } from 'react-native';
-import {
-  GestureHandlerRootView,
-  PanGestureHandler,
-  State,
-} from 'react-native-gesture-handler';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  useAnimatedGestureHandler,
-  withSpring,
-  withTiming,
-  runOnJS,
-  interpolate,
-  Extrapolate,
-} from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -86,8 +73,12 @@ const SwipeCard: React.FC<SwipeCardProps> = ({
   onSwipeUp,
   isTop,
 }) => {
-  const translateX = useSharedValue(0);
-  const translateY = useSharedValue(0);
+  const translateX = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(0)).current;
+
+  // Keep callback refs fresh on every render without recreating PanResponder
+  const handlersRef = useRef({ onSwipeRight, onSwipeLeft, onSwipeUp });
+  handlersRef.current = { onSwipeRight, onSwipeLeft, onSwipeUp };
 
   const compatibility = myDog ? compatibilityScore(myDog, dog) : 72;
   const ageStr = getAgeString(dog.birthDate);
@@ -95,82 +86,64 @@ const SwipeCard: React.FC<SwipeCardProps> = ({
   const bioPreview =
     dog.bio.length > 60 ? dog.bio.slice(0, 60) + '...' : dog.bio;
 
-  const handleSwipeRight = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    onSwipeRight();
-  }, [onSwipeRight]);
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderMove: (_, gestureState) => {
+        translateX.setValue(gestureState.dx);
+        translateY.setValue(gestureState.dy);
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        const { dx, dy } = gestureState;
+        if (dx > SWIPE_THRESHOLD) {
+          Animated.parallel([
+            Animated.timing(translateX, { toValue: SCREEN_WIDTH * 1.5, duration: 300, useNativeDriver: true }),
+            Animated.timing(translateY, { toValue: 50, duration: 300, useNativeDriver: true }),
+          ]).start(() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            handlersRef.current.onSwipeRight();
+          });
+        } else if (dx < -SWIPE_THRESHOLD) {
+          Animated.parallel([
+            Animated.timing(translateX, { toValue: -SCREEN_WIDTH * 1.5, duration: 300, useNativeDriver: true }),
+            Animated.timing(translateY, { toValue: 50, duration: 300, useNativeDriver: true }),
+          ]).start(() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            handlersRef.current.onSwipeLeft();
+          });
+        } else if (dy < SWIPE_UP_THRESHOLD) {
+          Animated.timing(translateY, { toValue: -SCREEN_HEIGHT, duration: 300, useNativeDriver: true }).start(() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+            handlersRef.current.onSwipeUp();
+          });
+        } else {
+          Animated.parallel([
+            Animated.spring(translateX, { toValue: 0, damping: 15, stiffness: 120, useNativeDriver: true }),
+            Animated.spring(translateY, { toValue: 0, damping: 15, stiffness: 120, useNativeDriver: true }),
+          ]).start();
+        }
+      },
+    })
+  ).current;
 
-  const handleSwipeLeft = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onSwipeLeft();
-  }, [onSwipeLeft]);
-
-  const handleSwipeUp = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    onSwipeUp();
-  }, [onSwipeUp]);
-
-  const gestureHandler = useAnimatedGestureHandler({
-    onStart: (_, ctx: any) => {
-      ctx.startX = translateX.value;
-      ctx.startY = translateY.value;
-    },
-    onActive: (event, ctx: any) => {
-      translateX.value = ctx.startX + event.translationX;
-      translateY.value = ctx.startY + event.translationY;
-    },
-    onEnd: () => {
-      if (translateX.value > SWIPE_THRESHOLD) {
-        translateX.value = withTiming(SCREEN_WIDTH * 1.5, { duration: 300 });
-        translateY.value = withTiming(50, { duration: 300 });
-        runOnJS(handleSwipeRight)();
-      } else if (translateX.value < -SWIPE_THRESHOLD) {
-        translateX.value = withTiming(-SCREEN_WIDTH * 1.5, { duration: 300 });
-        translateY.value = withTiming(50, { duration: 300 });
-        runOnJS(handleSwipeLeft)();
-      } else if (translateY.value < SWIPE_UP_THRESHOLD) {
-        translateY.value = withTiming(-SCREEN_HEIGHT, { duration: 300 });
-        runOnJS(handleSwipeUp)();
-      } else {
-        translateX.value = withSpring(0, { damping: 15, stiffness: 120 });
-        translateY.value = withSpring(0, { damping: 15, stiffness: 120 });
-      }
-    },
+  const rotate = translateX.interpolate({
+    inputRange: [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2],
+    outputRange: ['-12deg', '0deg', '12deg'],
+    extrapolate: 'clamp',
   });
 
-  const cardAnimatedStyle = useAnimatedStyle(() => {
-    const rotate = interpolate(
-      translateX.value,
-      [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2],
-      [-12, 0, 12],
-      Extrapolate.CLAMP
-    );
-    return {
-      transform: [
-        { translateX: translateX.value },
-        { translateY: translateY.value },
-        { rotate: `${rotate}deg` },
-      ],
-    };
+  const rightOpacity = translateX.interpolate({
+    inputRange: [0, SWIPE_THRESHOLD],
+    outputRange: [0, 0.85],
+    extrapolate: 'clamp',
   });
 
-  const rightOverlayStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(
-      translateX.value,
-      [0, SWIPE_THRESHOLD],
-      [0, 0.85],
-      Extrapolate.CLAMP
-    ),
-  }));
-
-  const leftOverlayStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(
-      translateX.value,
-      [-SWIPE_THRESHOLD, 0],
-      [0.85, 0],
-      Extrapolate.CLAMP
-    ),
-  }));
+  const leftOpacity = translateX.interpolate({
+    inputRange: [-SWIPE_THRESHOLD, 0],
+    outputRange: [0.85, 0],
+    extrapolate: 'clamp',
+  });
 
   if (!isTop) {
     return (
@@ -195,64 +168,71 @@ const SwipeCard: React.FC<SwipeCardProps> = ({
   }
 
   return (
-    <PanGestureHandler onGestureEvent={gestureHandler} enabled={isTop}>
-      <Animated.View style={[styles.card, cardAnimatedStyle, { zIndex: 10 }]}>
-        <Image
-          source={{ uri: dog.photos[0] }}
-          style={StyleSheet.absoluteFillObject}
-          resizeMode="cover"
-        />
-        <GradientOverlay />
+    <Animated.View
+      {...panResponder.panHandlers}
+      style={[
+        styles.card,
+        {
+          transform: [{ translateX }, { translateY }, { rotate }],
+          zIndex: 10,
+        },
+      ]}
+    >
+      <Image
+        source={{ uri: dog.photos[0] }}
+        style={StyleSheet.absoluteFillObject}
+        resizeMode="cover"
+      />
+      <GradientOverlay />
 
-        {/* Right swipe overlay */}
-        <Animated.View
-          style={[styles.swipeOverlay, styles.swipeOverlayRight, rightOverlayStyle, { pointerEvents: 'none' } as any]}
+      {/* Right swipe overlay */}
+      <Animated.View
+        style={[styles.swipeOverlay, styles.swipeOverlayRight, { opacity: rightOpacity }, { pointerEvents: 'none' } as any]}
+      >
+        <WText style={styles.swipeLabel}>נפגשים! 🐾</WText>
+      </Animated.View>
+
+      {/* Left swipe overlay */}
+      <Animated.View
+        style={[styles.swipeOverlay, styles.swipeOverlayLeft, { opacity: leftOpacity }, { pointerEvents: 'none' } as any]}
+      >
+        <WText style={styles.swipeLabel}>דילוג</WText>
+      </Animated.View>
+
+      {/* Content */}
+      <View style={styles.cardContent}>
+        <WText style={styles.dogName}>{dog.name}</WText>
+
+        <WText style={styles.dogMeta}>
+          {dog.breed} • {ageStr} • ~{distanceKm} ק&quot;מ
+        </WText>
+
+        {/* Personality tags */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tagsRow}
         >
-          <WText style={styles.swipeLabel}>נפגשים! 🐾</WText>
-        </Animated.View>
+          {dog.personality.slice(0, 4).map((tag, i) => (
+            <View key={i} style={styles.personalityPill}>
+              <WText style={styles.personalityPillText}>{tag}</WText>
+            </View>
+          ))}
+        </ScrollView>
 
-        {/* Left swipe overlay */}
-        <Animated.View
-          style={[styles.swipeOverlay, styles.swipeOverlayLeft, leftOverlayStyle, { pointerEvents: 'none' } as any]}
-        >
-          <WText style={styles.swipeLabel}>דילוג</WText>
-        </Animated.View>
-
-        {/* Content */}
-        <View style={styles.cardContent}>
-          <WText style={styles.dogName}>{dog.name}</WText>
-
-          <WText style={styles.dogMeta}>
-            {dog.breed} • {ageStr} • ~{distanceKm} ק&quot;מ
-          </WText>
-
-          {/* Personality tags */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.tagsRow}
-          >
-            {dog.personality.slice(0, 4).map((tag, i) => (
-              <View key={i} style={styles.personalityPill}>
-                <WText style={styles.personalityPillText}>{tag}</WText>
-              </View>
-            ))}
-          </ScrollView>
-
-          {/* Compatibility */}
-          <View style={styles.compatRow}>
-            <WText style={styles.compatText}>
-              💛 {compatibility}% התאמה
-            </WText>
-          </View>
-
-          {/* Bio */}
-          <WText style={styles.bioText} numberOfLines={2}>
-            {bioPreview}
+        {/* Compatibility */}
+        <View style={styles.compatRow}>
+          <WText style={styles.compatText}>
+            💛 {compatibility}% התאמה
           </WText>
         </View>
-      </Animated.View>
-    </PanGestureHandler>
+
+        {/* Bio */}
+        <WText style={styles.bioText} numberOfLines={2}>
+          {bioPreview}
+        </WText>
+      </View>
+    </Animated.View>
   );
 };
 
@@ -426,7 +406,7 @@ export const DiscoverScreen: React.FC = () => {
   }, []);
 
   return (
-    <GestureHandlerRootView style={styles.root}>
+    <View style={styles.root}>
       <View style={[styles.root, { paddingTop: insets.top }]}>
         {/* Filter chips */}
         <View style={styles.filterBar}>
@@ -563,7 +543,7 @@ export const DiscoverScreen: React.FC = () => {
           onContinue={handleMatchContinue}
         />
       </View>
-    </GestureHandlerRootView>
+    </View>
   );
 };
 

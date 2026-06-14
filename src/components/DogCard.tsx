@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useRef } from 'react';
 import {
   View,
   Image,
@@ -6,13 +6,8 @@ import {
   ScrollView,
   StyleSheet,
   ViewStyle,
+  Animated,
 } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withSequence,
-} from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
 import { Colors, Spacing, Shadow, FontFamily, FontSize } from '@/theme';
@@ -59,8 +54,6 @@ function getSharedActivity(dogA: Dog, dogB: Dog): string | null {
   return `${emoji} שניהם אוהבים ${shared}`;
 }
 
-const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
-
 export const DogCard: React.FC<DogCardProps> = ({
   dog,
   myDog,
@@ -69,19 +62,14 @@ export const DogCard: React.FC<DogCardProps> = ({
   onPress,
   style,
 }) => {
-  const heartScale = useSharedValue(1);
-
-  const heartStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: heartScale.value }],
-  }));
+  const heartScale = useRef(new Animated.Value(1)).current;
 
   const handleLike = useCallback(async () => {
-    // Spring scale: 0.8 → 1.2 → 1
-    heartScale.value = withSequence(
-      withSpring(0.8, { damping: 10, stiffness: 300 }),
-      withSpring(1.2, { damping: 10, stiffness: 300 }),
-      withSpring(1, { damping: 14, stiffness: 200 })
-    );
+    Animated.sequence([
+      Animated.spring(heartScale, { toValue: 0.8, damping: 10, stiffness: 300, useNativeDriver: true }),
+      Animated.spring(heartScale, { toValue: 1.2, damping: 10, stiffness: 300, useNativeDriver: true }),
+      Animated.spring(heartScale, { toValue: 1, damping: 14, stiffness: 200, useNativeDriver: true }),
+    ]).start();
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onLike?.();
   }, [onLike]);
@@ -164,7 +152,7 @@ export const DogCard: React.FC<DogCardProps> = ({
             {compatHint}
           </View>
 
-          <Animated.View style={heartStyle}>
+          <Animated.View style={{ transform: [{ scale: heartScale }] }}>
             <TouchableOpacity
               onPress={handleLike}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}

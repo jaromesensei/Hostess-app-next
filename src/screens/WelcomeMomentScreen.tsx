@@ -6,15 +6,8 @@ import {
   Image,
   Dimensions,
   Platform,
+  Animated,
 } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
-  withDelay,
-  runOnJS,
-} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -46,12 +39,12 @@ export const WelcomeMomentScreen: React.FC = () => {
   const ownerName = state.ownerName;
 
   // Animation values
-  const cardScale = useSharedValue(0.7);
-  const cardOpacity = useSharedValue(0);
-  const welcomeOpacity = useSharedValue(0);
-  const welcomeTranslateY = useSharedValue(12);
-  const aiCardOpacity = useSharedValue(0);
-  const aiCardTranslateY = useSharedValue(60);
+  const cardScale = useRef(new Animated.Value(0.7)).current;
+  const cardOpacity = useRef(new Animated.Value(0)).current;
+  const welcomeOpacity = useRef(new Animated.Value(0)).current;
+  const welcomeTranslateY = useRef(new Animated.Value(12)).current;
+  const aiCardOpacity = useRef(new Animated.Value(0)).current;
+  const aiCardTranslateY = useRef(new Animated.Value(60)).current;
 
   // AI content state
   const [aiContent, setAiContent] = useState<WelcomeAIContent | null>(null);
@@ -64,19 +57,31 @@ export const WelcomeMomentScreen: React.FC = () => {
   // Sequence animations on mount
   useEffect(() => {
     // t=0: dog card springs in
-    cardScale.value = withSpring(1, { damping: 14, stiffness: 120 });
-    cardOpacity.value = withTiming(1, { duration: 400 });
+    Animated.parallel([
+      Animated.spring(cardScale, { toValue: 1, damping: 14, stiffness: 120, useNativeDriver: true }),
+      Animated.timing(cardOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+    ]).start();
 
     // t=800ms: welcome text fades in
-    welcomeOpacity.value = withDelay(800, withTiming(1, { duration: 500 }));
-    welcomeTranslateY.value = withDelay(800, withSpring(0, { damping: 16, stiffness: 100 }));
+    const t1 = setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(welcomeOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
+        Animated.spring(welcomeTranslateY, { toValue: 0, damping: 16, stiffness: 100, useNativeDriver: true }),
+      ]).start();
+    }, 800);
 
     // t=1200ms: AI card slides up
-    aiCardOpacity.value = withDelay(1200, withTiming(1, { duration: 450 }));
-    aiCardTranslateY.value = withDelay(
-      1200,
-      withSpring(0, { damping: 16, stiffness: 100 })
-    );
+    const t2 = setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(aiCardOpacity, { toValue: 1, duration: 450, useNativeDriver: true }),
+        Animated.spring(aiCardTranslateY, { toValue: 0, damping: 16, stiffness: 100, useNativeDriver: true }),
+      ]).start();
+    }, 1200);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
   }, []);
 
   // Fetch AI content on mount
@@ -94,22 +99,6 @@ export const WelcomeMomentScreen: React.FC = () => {
         setAiContentVisible(true);
       });
   }, [dog]);
-
-  // Animated styles
-  const dogCardStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: cardScale.value }],
-    opacity: cardOpacity.value,
-  }));
-
-  const welcomeStyle = useAnimatedStyle(() => ({
-    opacity: welcomeOpacity.value,
-    transform: [{ translateY: welcomeTranslateY.value }],
-  }));
-
-  const aiCardStyle = useAnimatedStyle(() => ({
-    opacity: aiCardOpacity.value,
-    transform: [{ translateY: aiCardTranslateY.value }],
-  }));
 
   const handleCTA = useCallback(() => {
     navigation.navigate('MainApp');
@@ -135,7 +124,7 @@ export const WelcomeMomentScreen: React.FC = () => {
         bounces={false}
       >
         {/* ── Dog profile card ── */}
-        <Animated.View style={[styles.dogCard, dogCardStyle]}>
+        <Animated.View style={[styles.dogCard, { transform: [{ scale: cardScale }], opacity: cardOpacity }]}>
           {/* Dog photo */}
           <View style={styles.photoRing}>
             <Image
@@ -185,7 +174,7 @@ export const WelcomeMomentScreen: React.FC = () => {
         </Animated.View>
 
         {/* ── Welcome text ── */}
-        <Animated.View style={[styles.welcomeSection, welcomeStyle]}>
+        <Animated.View style={[styles.welcomeSection, { opacity: welcomeOpacity, transform: [{ translateY: welcomeTranslateY }] }]}>
           <WText variant="h1" color={Colors.forest} center>
             ברוכים הבאים למשפחה 🐾
           </WText>
@@ -207,7 +196,7 @@ export const WelcomeMomentScreen: React.FC = () => {
         </Animated.View>
 
         {/* ── AI card ── */}
-        <Animated.View style={[styles.aiCard, aiCardStyle]}>
+        <Animated.View style={[styles.aiCard, { opacity: aiCardOpacity, transform: [{ translateY: aiCardTranslateY }] }]}>
           {/* Header */}
           <View style={styles.aiHeader}>
             <WText

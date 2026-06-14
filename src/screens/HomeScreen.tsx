@@ -1,20 +1,14 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   ScrollView,
   RefreshControl,
   TouchableOpacity,
   StyleSheet,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  withSequence,
-  withDelay,
-} from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
 import { Colors, Spacing, Shadow, Radius, FontFamily, FontSize } from '@/theme';
@@ -49,20 +43,17 @@ function reminderEmoji(type: Reminder['type']): string {
 
 const ReminderCard: React.FC<{ reminder: Reminder }> = ({ reminder }) => {
   const [checked, setChecked] = useState(false);
-  const checkOpacity = useSharedValue(0);
-  const cardOpacity = useSharedValue(1);
-
-  const checkStyle = useAnimatedStyle(() => ({ opacity: checkOpacity.value }));
-  const cardStyle = useAnimatedStyle(() => ({ opacity: cardOpacity.value }));
+  const checkOpacity = useRef(new Animated.Value(0)).current;
+  const cardOpacity = useRef(new Animated.Value(1)).current;
 
   const handlePress = useCallback(async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    checkOpacity.value = withSequence(
-      withTiming(1, { duration: 200 }),
-      withDelay(700, withTiming(0, { duration: 300 }))
-    );
+    Animated.sequence([
+      Animated.timing(checkOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+      Animated.delay(700),
+      Animated.timing(checkOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+    ]).start();
     setChecked(true);
-    // Reset after animation
     setTimeout(() => setChecked(false), 1400);
   }, []);
 
@@ -72,10 +63,10 @@ const ReminderCard: React.FC<{ reminder: Reminder }> = ({ reminder }) => {
       onPress={handlePress}
       style={styles.reminderCard}
     >
-      <Animated.View style={[StyleSheet.absoluteFill, styles.reminderCheckOverlay, checkStyle]}>
+      <Animated.View style={[StyleSheet.absoluteFill, styles.reminderCheckOverlay, { opacity: checkOpacity }]}>
         <WText style={styles.reminderCheckmark}>✅</WText>
       </Animated.View>
-      <Animated.View style={cardStyle}>
+      <Animated.View style={{ opacity: cardOpacity }}>
         <WText style={styles.reminderEmoji}>{reminderEmoji(reminder.type)}</WText>
         <WText style={styles.reminderTitle} numberOfLines={1}>
           {reminder.title}
