@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
+import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '@/context/AppContext';
 import { Colors, FontFamily, FontSize, Spacing, Radius, Shadow } from '@/theme';
 import { WText, WAvatar } from '@/components/ui';
@@ -223,7 +224,7 @@ export const ChatScreen: React.FC = () => {
           onPress={() => navigation.goBack()}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
-          <WText style={styles.backIcon}>‹</WText>
+          <Ionicons name="chevron-back" size={28} color={Colors.forest} />
         </TouchableOpacity>
 
         {/* Avatar */}
@@ -248,7 +249,7 @@ export const ChatScreen: React.FC = () => {
           onPress={handleMore}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
-          <WText style={styles.moreIcon}>•••</WText>
+          <Ionicons name="ellipsis-horizontal" size={22} color={Colors.forest} />
         </TouchableOpacity>
       </View>
 
@@ -296,7 +297,7 @@ export const ChatScreen: React.FC = () => {
             disabled={!inputText.trim()}
             activeOpacity={0.75}
           >
-            <WText style={styles.sendIcon}>➤</WText>
+            <Ionicons name="send" size={18} color={Colors.white} style={{ transform: [{ scaleX: -1 }] }} />
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -334,24 +335,10 @@ const styles = StyleSheet.create({
   backButton: {
     paddingHorizontal: Spacing.xs,
   },
-  backIcon: {
-    fontFamily: FontFamily.bold,
-    fontSize: 32,
-    color: Colors.forest,
-    lineHeight: 38,
-  },
   headerInfo: {
     flex: 1,
     alignItems: 'flex-end',
   },
-  moreIcon: {
-    fontFamily: FontFamily.bold,
-    fontSize: FontSize.sm,
-    color: Colors.forest,
-    letterSpacing: 1,
-    paddingHorizontal: Spacing.xs,
-  },
-
   // Messages
   messagesContent: {
     paddingHorizontal: Spacing.base,
@@ -455,10 +442,5 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     opacity: 0.4,
-  },
-  sendIcon: {
-    fontFamily: FontFamily.bold,
-    fontSize: FontSize.base,
-    color: Colors.white,
   },
 });

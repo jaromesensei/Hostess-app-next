@@ -74,7 +74,7 @@ export const OnboardingStep3: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom'] as any}>
-      {/* Top bar */}
+      {/* Back button (forest header) */}
       <View style={styles.topBar}>
         <TouchableOpacity
           onPress={() => {
@@ -84,11 +84,13 @@ export const OnboardingStep3: React.FC = () => {
           style={styles.backBtn}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="chevron-back" size={26} color={Colors.forest} />
+          <Ionicons name="chevron-back" size={26} color={Colors.white} />
         </TouchableOpacity>
-        <View style={styles.progressInline}>
-          <ProgressBar current={3} total={5} />
-        </View>
+      </View>
+
+      {/* Progress bar */}
+      <View style={styles.progressWrap}>
+        <ProgressBar current={3} total={5} />
       </View>
 
       <KeyboardAvoidingView
@@ -101,89 +103,94 @@ export const OnboardingStep3: React.FC = () => {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Headline */}
-          <WText variant="h2" color={Colors.forest} style={styles.headline}>
-            קצת יותר על {dogName} 🐶
-          </WText>
-
-          {/* Neutered toggle */}
-          <View style={styles.section}>
-            <View style={styles.toggleRow}>
-              <WToggle value={isNeutered} onToggle={setIsNeutered} />
-              <WText variant="bodyMedium" color={Colors.text} style={styles.toggleLabel}>
-                {isFemale ? 'מעוקרת?' : 'מסורס?'}
-              </WText>
-            </View>
-          </View>
-
-          {/* Size selector */}
-          <View style={styles.section}>
-            <WText variant="captionMedium" color={Colors.gray} style={styles.sectionLabel}>
-              גודל
+          {/* Forest header */}
+          <View style={styles.header}>
+            <WText style={styles.headline} color={Colors.white}>
+              קצת יותר על {dogName} 🐶
             </WText>
-            <View style={styles.sizeRow}>
-              {SIZES.map((s) => (
-                <TouchableOpacity
-                  key={s.key}
-                  style={[
-                    styles.sizeCard,
-                    size === s.key && styles.sizeCardSelected,
-                  ]}
-                  onPress={async () => {
-                    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setSize(s.key);
-                  }}
-                  activeOpacity={0.75}
-                >
-                  <WText style={styles.sizeEmoji}>{s.emoji}</WText>
-                  <WText
-                    variant="label"
-                    color={size === s.key ? Colors.terra : Colors.gray}
-                    style={styles.sizeLabel}
-                  >
-                    {s.label}
-                  </WText>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <WText style={styles.subtext} color="rgba(255,255,255,0.8)">
+              נשלים את פרופיל הכלב
+            </WText>
           </View>
 
-          {/* Weight */}
-          <View style={styles.section}>
-            <WInput
-              label="משקל"
-              placeholder="0.0"
-              value={weight}
-              onChangeText={setWeight}
-              keyboardType="decimal-pad"
-              returnKeyType="done"
-              suffix={
-                <WText variant="bodyMedium" color={Colors.gray}>
-                  ק״ג
+          {/* Cream form card */}
+          <View style={styles.formSection}>
+            {/* Neutered toggle */}
+            <View style={styles.section}>
+              <View style={styles.toggleRow}>
+                <WToggle value={isNeutered} onToggle={setIsNeutered} />
+                <WText variant="bodyMedium" color={Colors.text} style={styles.toggleLabel}>
+                  {isFemale ? 'מעוקרת?' : 'מסורס?'}
                 </WText>
-              }
-            />
-          </View>
+              </View>
+            </View>
 
-          {/* Fur color */}
-          <View style={styles.section}>
-            <WText variant="captionMedium" color={Colors.gray} style={styles.sectionLabel}>
-              צבע פרווה
-            </WText>
-            <View style={styles.furRow}>
-              {FUR_COLORS.map((fc) => {
-                const fullLabel = `${fc.emoji} ${fc.label}`;
-                const isSelected = furColor === fc.label;
-                return (
-                  <WTag
-                    key={fc.label}
-                    label={fullLabel}
-                    selected={isSelected}
-                    onPress={() => setFurColor(isSelected ? '' : fc.label)}
-                    style={styles.furTag}
-                  />
-                );
-              })}
+            {/* Size selector */}
+            <View style={styles.section}>
+              <WText variant="captionMedium" color={Colors.gray} style={styles.sectionLabel}>
+                גודל
+              </WText>
+              <View style={styles.sizeRow}>
+                {SIZES.map((s) => (
+                  <TouchableOpacity
+                    key={s.key}
+                    style={[styles.sizeCard, size === s.key && styles.sizeCardSelected]}
+                    onPress={async () => {
+                      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setSize(s.key);
+                    }}
+                    activeOpacity={0.75}
+                  >
+                    <WText style={styles.sizeEmoji}>{s.emoji}</WText>
+                    <WText
+                      variant="label"
+                      color={size === s.key ? Colors.terra : Colors.gray}
+                      style={styles.sizeLabel}
+                    >
+                      {s.label}
+                    </WText>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Weight */}
+            <View style={styles.section}>
+              <WInput
+                label="משקל"
+                placeholder="0.0"
+                value={weight}
+                onChangeText={setWeight}
+                keyboardType="decimal-pad"
+                returnKeyType="done"
+                suffix={
+                  <WText variant="bodyMedium" color={Colors.gray}>
+                    ק״ג
+                  </WText>
+                }
+              />
+            </View>
+
+            {/* Fur color */}
+            <View style={styles.section}>
+              <WText variant="captionMedium" color={Colors.gray} style={styles.sectionLabel}>
+                צבע פרווה
+              </WText>
+              <View style={styles.furRow}>
+                {FUR_COLORS.map((fc) => {
+                  const fullLabel = `${fc.emoji} ${fc.label}`;
+                  const isSelected = furColor === fc.label;
+                  return (
+                    <WTag
+                      key={fc.label}
+                      label={fullLabel}
+                      selected={isSelected}
+                      onPress={() => setFurColor(isSelected ? '' : fc.label)}
+                      style={styles.furTag}
+                    />
+                  );
+                })}
+              </View>
             </View>
           </View>
         </ScrollView>
@@ -205,7 +212,7 @@ export const OnboardingStep3: React.FC = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.forest,
   },
   flex: {
     flex: 1,
@@ -215,27 +222,48 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: Spacing.base,
     paddingVertical: Spacing.md,
-    backgroundColor: Colors.cream,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    backgroundColor: Colors.forest,
   },
   backBtn: {
     marginRight: Spacing.sm,
   },
-  progressInline: {
-    flex: 1,
-    paddingRight: Spacing.sm,
+  progressWrap: {
+    paddingHorizontal: Spacing.xl,
+    paddingBottom: Spacing.sm,
+    backgroundColor: Colors.forest,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.lg,
     paddingBottom: Spacing.xl,
   },
+  header: {
+    backgroundColor: Colors.forest,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing['2xl'] + Radius.large,
+    alignItems: 'flex-end',
+  },
   headline: {
+    fontFamily: FontFamily.displayBlack,
+    fontSize: FontSize['3xl'],
     textAlign: 'right',
     writingDirection: 'rtl',
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.xs,
+  },
+  subtext: {
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.base,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  formSection: {
+    backgroundColor: Colors.cream,
+    borderTopLeftRadius: Radius.large,
+    borderTopRightRadius: Radius.large,
+    marginTop: -(Radius.large),
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.xl,
+    paddingBottom: Spacing.xl,
   },
   section: {
     marginBottom: Spacing.xl,

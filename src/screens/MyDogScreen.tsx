@@ -9,6 +9,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '@/context/AppContext';
 import { Colors, FontFamily, FontSize, Spacing, Radius, Shadow } from '@/theme';
 import {
@@ -280,6 +281,14 @@ export const MyDogScreen: React.FC = () => {
               <WText style={{ fontSize: 72 }}>🐾</WText>
             </View>
           )}
+          {/* Gradient overlay with dog name */}
+          <LinearGradient
+            colors={['transparent', 'rgba(20,38,28,0.88)']}
+            style={styles.heroGradient}
+          >
+            <WText style={styles.heroName}>{dog.name}</WText>
+            <WText style={styles.heroBreed}>{dog.breed}</WText>
+          </LinearGradient>
           {/* Edit button */}
           <TouchableOpacity
             style={styles.editButton}
@@ -292,9 +301,6 @@ export const MyDogScreen: React.FC = () => {
 
         {/* Floating profile card */}
         <View style={styles.profileCard}>
-          {/* Name */}
-          <WText style={styles.dogName}>{dog.name}</WText>
-
           {/* Breed • Age • Gender row */}
           <View style={styles.infoRow}>
             <WText variant="captionMedium" color={Colors.gray}>{dog.breed}</WText>
@@ -669,6 +675,31 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.cream2,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  heroGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 130,
+    justifyContent: 'flex-end',
+    paddingBottom: 50,
+    paddingHorizontal: Spacing.lg,
+    alignItems: 'flex-end',
+  },
+  heroName: {
+    fontFamily: FontFamily.displayBlack,
+    fontSize: 30,
+    color: Colors.white,
+    textAlign: 'right',
+    lineHeight: 34,
+  },
+  heroBreed: {
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.sm,
+    color: 'rgba(255,255,255,0.82)',
+    textAlign: 'right',
+    marginTop: 2,
   },
   editButton: {
     position: 'absolute',

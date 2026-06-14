@@ -68,7 +68,6 @@ export const OnboardingStep2: React.FC = () => {
     setBreedInput(text);
     setBreedSelected('');
     const results = searchBreeds(text);
-    // always show מעורב as last option if not already in results
     const mixed = 'מעורב / לא יודע';
     const filtered = results.filter(r => r !== mixed).slice(0, 7);
     setBreedResults([...filtered, mixed]);
@@ -84,7 +83,6 @@ export const OnboardingStep2: React.FC = () => {
     Keyboard.dismiss();
   };
 
-  // Parse DD/MM/YYYY or YYYY-MM-DD
   const parseBirthDate = (str: string): string | null => {
     const dmyMatch = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
     if (dmyMatch) {
@@ -155,7 +153,7 @@ export const OnboardingStep2: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom'] as any}>
-      {/* Progress + back row */}
+      {/* Back button (forest header) */}
       <View style={styles.topBar}>
         <TouchableOpacity
           onPress={() => {
@@ -165,11 +163,13 @@ export const OnboardingStep2: React.FC = () => {
           style={styles.backBtn}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="chevron-back" size={26} color={Colors.forest} />
+          <Ionicons name="chevron-back" size={26} color={Colors.white} />
         </TouchableOpacity>
-        <View style={styles.progressInline}>
-          <ProgressBar current={2} total={5} />
-        </View>
+      </View>
+
+      {/* Progress bar */}
+      <View style={styles.progressWrap}>
+        <ProgressBar current={2} total={5} />
       </View>
 
       <KeyboardAvoidingView
@@ -183,186 +183,178 @@ export const OnboardingStep2: React.FC = () => {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            <WText variant="h2" color={Colors.forest} style={styles.headline}>
-              ספר לנו על הכלב שלך 🐾
-            </WText>
-
-            {/* Dog photo picker */}
-            <View style={styles.photoRow}>
-              <TouchableOpacity
-                onPress={pickDogPhoto}
-                style={styles.dogPhotoCircle}
-                activeOpacity={0.8}
-              >
-                {dogPhoto ? (
-                  <Image source={{ uri: dogPhoto }} style={styles.dogPhotoImage} />
-                ) : (
-                  <WText style={styles.dogPhotoPlaceholder}>🐾</WText>
-                )}
-                <View style={styles.cameraOverlay}>
-                  <Ionicons name="camera" size={16} color={Colors.white} />
-                </View>
-              </TouchableOpacity>
-              {photoError ? (
-                <WText variant="caption" color={Colors.error} style={styles.photoError}>
-                  {photoError}
-                </WText>
-              ) : null}
+            {/* Forest header */}
+            <View style={styles.header}>
+              <WText style={styles.headline} color={Colors.white}>
+                ספר לנו על הכלב שלך 🐾
+              </WText>
+              <WText style={styles.subtext} color="rgba(255,255,255,0.8)">
+                כמה פרטים בסיסיים
+              </WText>
             </View>
 
-            <View style={styles.formWrap}>
-              {/* Dog name */}
-              <WInput
-                label="שם הכלב"
-                placeholder="מה שם הכלב שלך?"
-                value={dogName}
-                onChangeText={(t) => {
-                  setDogName(t);
-                  if (t.trim()) setNameError('');
-                }}
-                error={nameError}
-                returnKeyType="next"
-                autoCapitalize="words"
-              />
-
-              <View style={styles.gap} />
-
-              {/* Breed search */}
-              <View style={styles.breedWrap}>
-                <WText variant="captionMedium" color={Colors.gray} style={styles.inputLabel}>
-                  גזע
-                </WText>
-                <View
-                  style={[
-                    styles.breedInputContainer,
-                    breedFocused && styles.breedInputFocused,
-                    breedError ? styles.breedInputError : undefined,
-                  ]}
+            {/* Cream form card */}
+            <View style={styles.formSection}>
+              {/* Dog photo picker */}
+              <View style={styles.photoRow}>
+                <TouchableOpacity
+                  onPress={pickDogPhoto}
+                  style={styles.dogPhotoCircle}
+                  activeOpacity={0.8}
                 >
-                  <TextInput
-                    style={styles.breedTextInput}
-                    placeholder="חפש גזע..."
-                    placeholderTextColor={Colors.placeholder}
-                    value={breedInput}
-                    onChangeText={handleBreedChange}
-                    onFocus={() => {
-                      setBreedFocused(true);
-                      if (!breedInput.trim()) {
-                        const results = searchBreeds('');
-                        const mixed = 'מעורב / לא יודע';
-                        const filtered = results.filter(r => r !== mixed).slice(0, 7);
-                        setBreedResults([...filtered, mixed]);
-                      }
-                    }}
-                    onBlur={() => {
-                      // Delay to allow tap on result
-                      setTimeout(() => setBreedFocused(false), 200);
-                    }}
-                    textAlign="right"
-                    returnKeyType="done"
-                  />
-                  {breedSelected ? (
-                    <Ionicons name="checkmark-circle" size={20} color={Colors.success} />
+                  {dogPhoto ? (
+                    <Image source={{ uri: dogPhoto }} style={styles.dogPhotoImage} />
+                  ) : (
+                    <WText style={styles.dogPhotoPlaceholder}>🐾</WText>
+                  )}
+                  <View style={styles.cameraOverlay}>
+                    <Ionicons name="camera" size={16} color={Colors.white} />
+                  </View>
+                </TouchableOpacity>
+                {photoError ? (
+                  <WText variant="caption" color={Colors.error} style={styles.photoError}>
+                    {photoError}
+                  </WText>
+                ) : null}
+              </View>
+
+              <View style={styles.formWrap}>
+                {/* Dog name */}
+                <WInput
+                  label="שם הכלב"
+                  placeholder="מה שם הכלב שלך?"
+                  value={dogName}
+                  onChangeText={(t) => {
+                    setDogName(t);
+                    if (t.trim()) setNameError('');
+                  }}
+                  error={nameError}
+                  returnKeyType="next"
+                  autoCapitalize="words"
+                />
+
+                <View style={styles.gap} />
+
+                {/* Breed search */}
+                <View style={styles.breedWrap}>
+                  <WText variant="captionMedium" color={Colors.gray} style={styles.inputLabel}>
+                    גזע
+                  </WText>
+                  <View
+                    style={[
+                      styles.breedInputContainer,
+                      breedFocused && styles.breedInputFocused,
+                      breedError ? styles.breedInputError : undefined,
+                    ]}
+                  >
+                    <TextInput
+                      style={styles.breedTextInput}
+                      placeholder="חפש גזע..."
+                      placeholderTextColor={Colors.placeholder}
+                      value={breedInput}
+                      onChangeText={handleBreedChange}
+                      onFocus={() => {
+                        setBreedFocused(true);
+                        if (!breedInput.trim()) {
+                          const results = searchBreeds('');
+                          const mixed = 'מעורב / לא יודע';
+                          const filtered = results.filter(r => r !== mixed).slice(0, 7);
+                          setBreedResults([...filtered, mixed]);
+                        }
+                      }}
+                      onBlur={() => {
+                        setTimeout(() => setBreedFocused(false), 200);
+                      }}
+                      textAlign="right"
+                      returnKeyType="done"
+                    />
+                    {breedSelected ? (
+                      <Ionicons name="checkmark-circle" size={20} color={Colors.success} />
+                    ) : null}
+                  </View>
+                  {breedError ? (
+                    <WText variant="caption" color={Colors.error} style={styles.fieldError}>
+                      {breedError}
+                    </WText>
                   ) : null}
+
+                  {/* Breed dropdown */}
+                  {breedFocused && breedResults.length > 0 && (
+                    <View style={styles.breedDropdown}>
+                      <FlatList
+                        data={breedResults}
+                        keyExtractor={(item) => item}
+                        keyboardShouldPersistTaps="always"
+                        scrollEnabled={false}
+                        renderItem={({ item }) => (
+                          <TouchableOpacity
+                            style={styles.breedItem}
+                            onPress={() => handleBreedSelect(item)}
+                            activeOpacity={0.7}
+                          >
+                            <WText variant="bodyMedium" color={Colors.text}>
+                              {item}
+                            </WText>
+                          </TouchableOpacity>
+                        )}
+                        ItemSeparatorComponent={() => <View style={styles.breedSeparator} />}
+                      />
+                    </View>
+                  )}
                 </View>
-                {breedError ? (
-                  <WText variant="caption" color={Colors.error} style={styles.fieldError}>
-                    {breedError}
+
+                <View style={styles.gap} />
+
+                {/* Birth date */}
+                <WInput
+                  label="תאריך לידה"
+                  placeholder="DD/MM/YYYY"
+                  value={birthDateStr}
+                  onChangeText={setBirthDateStr}
+                  returnKeyType="done"
+                  keyboardType="numbers-and-punctuation"
+                />
+                {ageString ? (
+                  <WText variant="caption" color={Colors.terra} style={styles.ageHint}>
+                    גיל: {ageString}
                   </WText>
                 ) : null}
 
-                {/* Breed dropdown */}
-                {breedFocused && breedResults.length > 0 && (
-                  <View style={styles.breedDropdown}>
-                    <FlatList
-                      data={breedResults}
-                      keyExtractor={(item) => item}
-                      keyboardShouldPersistTaps="always"
-                      scrollEnabled={false}
-                      renderItem={({ item }) => (
-                        <TouchableOpacity
-                          style={styles.breedItem}
-                          onPress={() => handleBreedSelect(item)}
-                          activeOpacity={0.7}
-                        >
-                          <WText variant="bodyMedium" color={Colors.text}>
-                            {item}
-                          </WText>
-                        </TouchableOpacity>
-                      )}
-                      ItemSeparatorComponent={() => <View style={styles.breedSeparator} />}
-                    />
-                  </View>
-                )}
-              </View>
+                <View style={styles.gap} />
 
-              <View style={styles.gap} />
-
-              {/* Birth date */}
-              <WInput
-                label="תאריך לידה"
-                placeholder="DD/MM/YYYY"
-                value={birthDateStr}
-                onChangeText={setBirthDateStr}
-                returnKeyType="done"
-                keyboardType="numbers-and-punctuation"
-              />
-              {ageString ? (
-                <WText variant="caption" color={Colors.terra} style={styles.ageHint}>
-                  גיל: {ageString}
+                {/* Gender selector */}
+                <WText variant="captionMedium" color={Colors.gray} style={styles.inputLabel}>
+                  מין
                 </WText>
-              ) : null}
-
-              <View style={styles.gap} />
-
-              {/* Gender selector */}
-              <WText variant="captionMedium" color={Colors.gray} style={styles.inputLabel}>
-                מין
-              </WText>
-              <View style={styles.genderRow}>
-                <TouchableOpacity
-                  style={[
-                    styles.genderChip,
-                    gender === 'male' && styles.genderChipSelected,
-                  ]}
-                  onPress={async () => {
-                    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setGender('male');
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <WText
-                    style={[
-                      styles.genderChipText,
-                      gender === 'male' && styles.genderChipTextSelected,
-                    ]}
+                <View style={styles.genderRow}>
+                  <TouchableOpacity
+                    style={[styles.genderChip, gender === 'male' && styles.genderChipSelected]}
+                    onPress={async () => {
+                      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setGender('male');
+                    }}
+                    activeOpacity={0.8}
                   >
-                    ♂ זכר
-                  </WText>
-                </TouchableOpacity>
+                    <WText style={[styles.genderChipText, gender === 'male' && styles.genderChipTextSelected]}>
+                      ♂ זכר
+                    </WText>
+                  </TouchableOpacity>
 
-                <View style={{ width: Spacing.md }} />
+                  <View style={{ width: Spacing.md }} />
 
-                <TouchableOpacity
-                  style={[
-                    styles.genderChip,
-                    gender === 'female' && styles.genderChipSelected,
-                  ]}
-                  onPress={async () => {
-                    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setGender('female');
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <WText
-                    style={[
-                      styles.genderChipText,
-                      gender === 'female' && styles.genderChipTextSelected,
-                    ]}
+                  <TouchableOpacity
+                    style={[styles.genderChip, gender === 'female' && styles.genderChipSelected]}
+                    onPress={async () => {
+                      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setGender('female');
+                    }}
+                    activeOpacity={0.8}
                   >
-                    ♀ נקבה
-                  </WText>
-                </TouchableOpacity>
+                    <WText style={[styles.genderChipText, gender === 'female' && styles.genderChipTextSelected]}>
+                      ♀ נקבה
+                    </WText>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           </ScrollView>
@@ -385,7 +377,7 @@ export const OnboardingStep2: React.FC = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.forest,
   },
   flex: {
     flex: 1,
@@ -395,27 +387,48 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: Spacing.base,
     paddingVertical: Spacing.md,
-    backgroundColor: Colors.cream,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    backgroundColor: Colors.forest,
   },
   backBtn: {
     marginRight: Spacing.sm,
   },
-  progressInline: {
-    flex: 1,
-    paddingRight: Spacing.sm,
+  progressWrap: {
+    paddingHorizontal: Spacing.xl,
+    paddingBottom: Spacing.sm,
+    backgroundColor: Colors.forest,
   },
   scrollContent: {
     flexGrow: 1,
     paddingBottom: Spacing.xl,
+  },
+  header: {
+    backgroundColor: Colors.forest,
     paddingHorizontal: Spacing.xl,
     paddingTop: Spacing.lg,
+    paddingBottom: Spacing['2xl'] + Radius.large,
+    alignItems: 'flex-end',
   },
   headline: {
+    fontFamily: FontFamily.displayBlack,
+    fontSize: FontSize['3xl'],
     textAlign: 'right',
     writingDirection: 'rtl',
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.xs,
+  },
+  subtext: {
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.base,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  formSection: {
+    backgroundColor: Colors.cream,
+    borderTopLeftRadius: Radius.large,
+    borderTopRightRadius: Radius.large,
+    marginTop: -(Radius.large),
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.xl,
+    paddingBottom: Spacing.xl,
   },
   photoRow: {
     alignItems: 'center',

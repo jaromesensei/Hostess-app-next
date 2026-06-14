@@ -59,7 +59,6 @@ const RADIUS_OPTIONS = [1, 5, 10, 25, 50];
 
 export const OnboardingStep5: React.FC = () => {
   const onboardingNav = useNavigation<OnboardingNavProp>();
-  // Access root navigator via parent
   const rootNav = useNavigation<RootNavType>();
 
   const { state, updateDog, completeOnboarding } = useApp();
@@ -97,7 +96,6 @@ export const OnboardingStep5: React.FC = () => {
         trained: 'basic',
       });
       await completeOnboarding();
-      // Navigate to WelcomeMoment on root stack
       (rootNav as any).navigate('WelcomeMoment');
     } catch (e) {
       setLoading(false);
@@ -106,7 +104,7 @@ export const OnboardingStep5: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom'] as any}>
-      {/* Top bar */}
+      {/* Back button (forest header) */}
       <View style={styles.topBar}>
         <TouchableOpacity
           onPress={() => {
@@ -116,11 +114,13 @@ export const OnboardingStep5: React.FC = () => {
           style={styles.backBtn}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="chevron-back" size={26} color={Colors.forest} />
+          <Ionicons name="chevron-back" size={26} color={Colors.white} />
         </TouchableOpacity>
-        <View style={styles.progressInline}>
-          <ProgressBar current={5} total={5} />
-        </View>
+      </View>
+
+      {/* Progress bar */}
+      <View style={styles.progressWrap}>
+        <ProgressBar current={5} total={5} />
       </View>
 
       <KeyboardAvoidingView
@@ -133,98 +133,103 @@ export const OnboardingStep5: React.FC = () => {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Headline */}
-          <WText variant="h2" color={Colors.forest} style={styles.headline}>
-            מה {dogName} מחפש? 🔍
-          </WText>
-
-          {/* Looking for cards */}
-          <View style={styles.section}>
-            {lookingForError ? (
-              <WText variant="caption" color={Colors.error} style={styles.lookingForError}>
-                {lookingForError}
-              </WText>
-            ) : null}
-            {LOOKING_FOR_OPTIONS.map((option) => {
-              const isSelected = lookingFor.includes(option.value);
-              return (
-                <TouchableOpacity
-                  key={option.value}
-                  style={[styles.lookingForCard, isSelected && styles.lookingForCardSelected]}
-                  onPress={() => toggleLookingFor(option.value)}
-                  activeOpacity={0.8}
-                >
-                  <View style={styles.lookingForCardContent}>
-                    <View style={styles.lookingForTextWrap}>
-                      <WText
-                        variant="title"
-                        color={isSelected ? Colors.terra : Colors.text}
-                        style={styles.lookingForTitle}
-                      >
-                        {option.title}
-                      </WText>
-                      <WText variant="caption" color={Colors.gray} style={styles.lookingForDesc}>
-                        {option.description}
-                      </WText>
-                    </View>
-                    <WText style={styles.lookingForEmoji}>{option.emoji}</WText>
-                  </View>
-                  {isSelected && (
-                    <View style={styles.checkmark}>
-                      <Ionicons name="checkmark" size={14} color={Colors.white} />
-                    </View>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
+          {/* Forest header */}
+          <View style={styles.header}>
+            <WText style={styles.headline} color={Colors.white}>
+              מה {dogName} מחפש? 🔍
+            </WText>
+            <WText style={styles.subtext} color="rgba(255,255,255,0.8)">
+              נמצא את ההתאמה המושלמת
+            </WText>
           </View>
 
-          {/* Search radius */}
-          <View style={styles.section}>
-            <WText variant="captionMedium" color={Colors.gray} style={styles.sectionLabel}>
-              רדיוס חיפוש: {searchRadius} ק"מ
-            </WText>
-            <View style={styles.radiusRow}>
-              {RADIUS_OPTIONS.map((km) => (
-                <TouchableOpacity
-                  key={km}
-                  style={[
-                    styles.radiusPill,
-                    searchRadius === km && styles.radiusPillSelected,
-                  ]}
-                  onPress={async () => {
-                    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setSearchRadius(km);
-                  }}
-                  activeOpacity={0.75}
-                >
-                  <WText
-                    variant="captionMedium"
-                    color={searchRadius === km ? Colors.white : Colors.gray}
+          {/* Cream form card */}
+          <View style={styles.formSection}>
+            {/* Looking for cards */}
+            <View style={styles.section}>
+              {lookingForError ? (
+                <WText variant="caption" color={Colors.error} style={styles.lookingForError}>
+                  {lookingForError}
+                </WText>
+              ) : null}
+              {LOOKING_FOR_OPTIONS.map((option) => {
+                const isSelected = lookingFor.includes(option.value);
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[styles.lookingForCard, isSelected && styles.lookingForCardSelected]}
+                    onPress={() => toggleLookingFor(option.value)}
+                    activeOpacity={0.8}
                   >
-                    {km}
-                  </WText>
-                </TouchableOpacity>
-              ))}
+                    <View style={styles.lookingForCardContent}>
+                      <View style={styles.lookingForTextWrap}>
+                        <WText
+                          variant="title"
+                          color={isSelected ? Colors.terra : Colors.text}
+                          style={styles.lookingForTitle}
+                        >
+                          {option.title}
+                        </WText>
+                        <WText variant="caption" color={Colors.gray} style={styles.lookingForDesc}>
+                          {option.description}
+                        </WText>
+                      </View>
+                      <WText style={styles.lookingForEmoji}>{option.emoji}</WText>
+                    </View>
+                    {isSelected && (
+                      <View style={styles.checkmark}>
+                        <Ionicons name="checkmark" size={14} color={Colors.white} />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
             </View>
-          </View>
 
-          {/* Bio */}
-          <View style={styles.section}>
-            <WInput
-              label={`ספר על ${dogName} (אופציונלי)`}
-              placeholder="תאר את הכלב שלך בכמה מילים..."
-              value={bio}
-              onChangeText={setBio}
-              multiline
-              numberOfLines={4}
-              maxLength={200}
-              style={styles.bioInput}
-              returnKeyType="done"
-            />
-            <WText variant="caption" color={Colors.gray} style={styles.charCount}>
-              {bio.length}/200
-            </WText>
+            {/* Search radius */}
+            <View style={styles.section}>
+              <WText variant="captionMedium" color={Colors.gray} style={styles.sectionLabel}>
+                רדיוס חיפוש: {searchRadius} ק"מ
+              </WText>
+              <View style={styles.radiusRow}>
+                {RADIUS_OPTIONS.map((km) => (
+                  <TouchableOpacity
+                    key={km}
+                    style={[styles.radiusPill, searchRadius === km && styles.radiusPillSelected]}
+                    onPress={async () => {
+                      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setSearchRadius(km);
+                    }}
+                    activeOpacity={0.75}
+                  >
+                    <WText
+                      variant="captionMedium"
+                      color={searchRadius === km ? Colors.white : Colors.gray}
+                    >
+                      {km}
+                    </WText>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Bio */}
+            <View style={styles.section}>
+              <WInput
+                label={`ספר על ${dogName} (אופציונלי)`}
+                placeholder="תאר את הכלב שלך בכמה מילים..."
+                value={bio}
+                onChangeText={setBio}
+                multiline
+                numberOfLines={4}
+                maxLength={200}
+                style={styles.bioInput}
+                returnKeyType="done"
+              />
+              <WText variant="caption" color={Colors.gray} style={styles.charCount}>
+                {bio.length}/200
+              </WText>
+            </View>
           </View>
         </ScrollView>
 
@@ -245,7 +250,7 @@ export const OnboardingStep5: React.FC = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.forest,
   },
   flex: {
     flex: 1,
@@ -255,27 +260,48 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: Spacing.base,
     paddingVertical: Spacing.md,
-    backgroundColor: Colors.cream,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    backgroundColor: Colors.forest,
   },
   backBtn: {
     marginRight: Spacing.sm,
   },
-  progressInline: {
-    flex: 1,
-    paddingRight: Spacing.sm,
+  progressWrap: {
+    paddingHorizontal: Spacing.xl,
+    paddingBottom: Spacing.sm,
+    backgroundColor: Colors.forest,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.lg,
     paddingBottom: Spacing.xl,
   },
+  header: {
+    backgroundColor: Colors.forest,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing['2xl'] + Radius.large,
+    alignItems: 'flex-end',
+  },
   headline: {
+    fontFamily: FontFamily.displayBlack,
+    fontSize: FontSize['3xl'],
     textAlign: 'right',
     writingDirection: 'rtl',
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.xs,
+  },
+  subtext: {
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.base,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  formSection: {
+    backgroundColor: Colors.cream,
+    borderTopLeftRadius: Radius.large,
+    borderTopRightRadius: Radius.large,
+    marginTop: -(Radius.large),
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.xl,
+    paddingBottom: Spacing.xl,
   },
   section: {
     marginBottom: Spacing.xl,

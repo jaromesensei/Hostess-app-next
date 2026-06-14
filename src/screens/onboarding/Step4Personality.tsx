@@ -109,7 +109,7 @@ export const OnboardingStep4: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom'] as any}>
-      {/* Top bar */}
+      {/* Back button (forest header) */}
       <View style={styles.topBar}>
         <TouchableOpacity
           onPress={() => {
@@ -119,11 +119,13 @@ export const OnboardingStep4: React.FC = () => {
           style={styles.backBtn}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="chevron-back" size={26} color={Colors.forest} />
+          <Ionicons name="chevron-back" size={26} color={Colors.white} />
         </TouchableOpacity>
-        <View style={styles.progressInline}>
-          <ProgressBar current={4} total={5} />
-        </View>
+      </View>
+
+      {/* Progress bar */}
+      <View style={styles.progressWrap}>
+        <ProgressBar current={4} total={5} />
       </View>
 
       <KeyboardAvoidingView
@@ -136,109 +138,112 @@ export const OnboardingStep4: React.FC = () => {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Headline */}
-          <WText variant="h2" color={Colors.forest} style={styles.headline}>
-            האישיות של {dogName} ✨
-          </WText>
-
-          {/* Energy level */}
-          <View style={styles.section}>
-            <WText variant="captionMedium" color={Colors.gray} style={styles.sectionLabel}>
-              רמת אנרגיה
+          {/* Forest header */}
+          <View style={styles.header}>
+            <WText style={styles.headline} color={Colors.white}>
+              האישיות של {dogName} ✨
             </WText>
-            <View style={styles.energyRow}>
-              {[1, 2, 3, 4, 5].map((level) => (
-                <TouchableOpacity
-                  key={level}
-                  onPress={() => handleEnergyPress(level)}
-                  style={[
-                    styles.energyCircle,
-                    energyLevel === level && styles.energyCircleSelected,
-                  ]}
-                  activeOpacity={0.75}
-                >
-                  <WText
+            <WText style={styles.subtext} color="rgba(255,255,255,0.8)">
+              מה מיוחד בו?
+            </WText>
+          </View>
+
+          {/* Cream form card */}
+          <View style={styles.formSection}>
+            {/* Energy level */}
+            <View style={styles.section}>
+              <WText variant="captionMedium" color={Colors.gray} style={styles.sectionLabel}>
+                רמת אנרגיה
+              </WText>
+              <View style={styles.energyRow}>
+                {[1, 2, 3, 4, 5].map((level) => (
+                  <TouchableOpacity
+                    key={level}
+                    onPress={() => handleEnergyPress(level)}
                     style={[
-                      styles.energyNumber,
-                      energyLevel === level && styles.energyNumberSelected,
+                      styles.energyCircle,
+                      energyLevel === level && styles.energyCircleSelected,
                     ]}
+                    activeOpacity={0.75}
                   >
-                    {level}
+                    <WText
+                      style={[
+                        styles.energyNumber,
+                        energyLevel === level && styles.energyNumberSelected,
+                      ]}
+                    >
+                      {level}
+                    </WText>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <WText variant="caption" color={Colors.terra} style={styles.energyLabelText}>
+                {ENERGY_LABELS[energyLevel]}
+              </WText>
+            </View>
+
+            {/* Personality tags */}
+            <View style={styles.section}>
+              <WText variant="captionMedium" color={Colors.gray} style={styles.sectionLabel}>
+                אישיות (ניתן לבחור כמה)
+              </WText>
+              <View style={styles.tagsWrap}>
+                {PERSONALITY_TAGS.map((tag) => (
+                  <WTag
+                    key={tag}
+                    label={tag}
+                    selected={personality.includes(tag)}
+                    onPress={() => togglePersonality(tag)}
+                    style={styles.tag}
+                  />
+                ))}
+              </View>
+            </View>
+
+            {/* Activities */}
+            <View style={styles.section}>
+              <WText variant="captionMedium" color={Colors.gray} style={styles.sectionLabel}>
+                פעילויות אהובות
+              </WText>
+              <View style={styles.tagsWrap}>
+                {ACTIVITIES.map((activity) => (
+                  <WTag
+                    key={activity}
+                    label={activity}
+                    selected={activities.includes(activity)}
+                    onPress={() => toggleActivity(activity)}
+                    style={styles.tag}
+                  />
+                ))}
+              </View>
+            </View>
+
+            {/* Good with */}
+            <View style={styles.section}>
+              <WText variant="captionMedium" color={Colors.gray} style={styles.sectionLabel}>
+                מסתדר עם...
+              </WText>
+              <View style={styles.goodWithCard}>
+                <View style={styles.goodWithRow}>
+                  <WToggle value={goodWithDogs} onToggle={setGoodWithDogs} />
+                  <WText variant="bodyMedium" color={Colors.text} style={styles.goodWithLabel}>
+                    🐕 כלבים אחרים
                   </WText>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <WText variant="caption" color={Colors.terra} style={styles.energyLabelText}>
-              {ENERGY_LABELS[energyLevel]}
-            </WText>
-          </View>
-
-          {/* Personality tags */}
-          <View style={styles.section}>
-            <WText variant="captionMedium" color={Colors.gray} style={styles.sectionLabel}>
-              אישיות (ניתן לבחור כמה)
-            </WText>
-            <View style={styles.tagsWrap}>
-              {PERSONALITY_TAGS.map((tag) => (
-                <WTag
-                  key={tag}
-                  label={tag}
-                  selected={personality.includes(tag)}
-                  onPress={() => togglePersonality(tag)}
-                  style={styles.tag}
-                />
-              ))}
-            </View>
-          </View>
-
-          {/* Activities */}
-          <View style={styles.section}>
-            <WText variant="captionMedium" color={Colors.gray} style={styles.sectionLabel}>
-              פעילויות אהובות
-            </WText>
-            <View style={styles.tagsWrap}>
-              {ACTIVITIES.map((activity) => (
-                <WTag
-                  key={activity}
-                  label={activity}
-                  selected={activities.includes(activity)}
-                  onPress={() => toggleActivity(activity)}
-                  style={styles.tag}
-                />
-              ))}
-            </View>
-          </View>
-
-          {/* Good with */}
-          <View style={styles.section}>
-            <WText variant="captionMedium" color={Colors.gray} style={styles.sectionLabel}>
-              מסתדר עם...
-            </WText>
-            <View style={styles.goodWithCard}>
-              {/* Good with dogs */}
-              <View style={styles.goodWithRow}>
-                <WToggle value={goodWithDogs} onToggle={setGoodWithDogs} />
-                <WText variant="bodyMedium" color={Colors.text} style={styles.goodWithLabel}>
-                  🐕 כלבים אחרים
-                </WText>
-              </View>
-              <View style={styles.divider} />
-
-              {/* Good with kids */}
-              <View style={styles.goodWithRow}>
-                <WToggle value={goodWithKids} onToggle={setGoodWithKids} />
-                <WText variant="bodyMedium" color={Colors.text} style={styles.goodWithLabel}>
-                  👶 ילדים
-                </WText>
-              </View>
-              <View style={styles.divider} />
-
-              {/* Good with cats */}
-              <View style={styles.goodWithRow}>
-                <WToggle value={goodWithCats} onToggle={setGoodWithCats} />
-                <WText variant="bodyMedium" color={Colors.text} style={styles.goodWithLabel}>
-                  🐱 חתולים
-                </WText>
+                </View>
+                <View style={styles.divider} />
+                <View style={styles.goodWithRow}>
+                  <WToggle value={goodWithKids} onToggle={setGoodWithKids} />
+                  <WText variant="bodyMedium" color={Colors.text} style={styles.goodWithLabel}>
+                    👶 ילדים
+                  </WText>
+                </View>
+                <View style={styles.divider} />
+                <View style={styles.goodWithRow}>
+                  <WToggle value={goodWithCats} onToggle={setGoodWithCats} />
+                  <WText variant="bodyMedium" color={Colors.text} style={styles.goodWithLabel}>
+                    🐱 חתולים
+                  </WText>
+                </View>
               </View>
             </View>
           </View>
@@ -261,7 +266,7 @@ export const OnboardingStep4: React.FC = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.forest,
   },
   flex: {
     flex: 1,
@@ -271,27 +276,48 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: Spacing.base,
     paddingVertical: Spacing.md,
-    backgroundColor: Colors.cream,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    backgroundColor: Colors.forest,
   },
   backBtn: {
     marginRight: Spacing.sm,
   },
-  progressInline: {
-    flex: 1,
-    paddingRight: Spacing.sm,
+  progressWrap: {
+    paddingHorizontal: Spacing.xl,
+    paddingBottom: Spacing.sm,
+    backgroundColor: Colors.forest,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.lg,
     paddingBottom: Spacing.xl,
   },
+  header: {
+    backgroundColor: Colors.forest,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing['2xl'] + Radius.large,
+    alignItems: 'flex-end',
+  },
   headline: {
+    fontFamily: FontFamily.displayBlack,
+    fontSize: FontSize['3xl'],
     textAlign: 'right',
     writingDirection: 'rtl',
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.xs,
+  },
+  subtext: {
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.base,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  formSection: {
+    backgroundColor: Colors.cream,
+    borderTopLeftRadius: Radius.large,
+    borderTopRightRadius: Radius.large,
+    marginTop: -(Radius.large),
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.xl,
+    paddingBottom: Spacing.xl,
   },
   section: {
     marginBottom: Spacing.xl,
