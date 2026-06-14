@@ -13,6 +13,8 @@ import { MOCK_DOGS } from '@/data/mockDogs';
 
 const initialState: AppState = {
   dog: null,
+  dogs: [],
+  activeDogId: null,
   ownerName: '',
   ownerCity: '',
   ownerPhoto: null,
@@ -29,6 +31,9 @@ type Action =
   | { type: 'HYDRATE'; payload: AppState }
   | { type: 'SET_DOG'; payload: Dog }
   | { type: 'UPDATE_DOG'; payload: Partial<Dog> }
+  | { type: 'ADD_ANOTHER_DOG'; payload: Dog }
+  | { type: 'SWITCH_ACTIVE_DOG'; payload: string }
+  | { type: 'REMOVE_DOG'; payload: string }
   | { type: 'SET_OWNER'; payload: { name: string; city: string; photo?: string | null } }
   | { type: 'COMPLETE_ONBOARDING' }
   | { type: 'ADD_HEALTH_RECORD'; payload: HealthRecord }
@@ -42,20 +47,63 @@ type Action =
   | { type: 'ADD_MESSAGE'; payload: { matchId: string; message: Message } }
   | { type: 'MARK_MATCH_READ'; payload: string }
   | { type: 'LIKE_DOG'; payload: string }
-  | { type: 'UNLIKE_DOG'; payload: string };
+  | { type: 'UNLIKE_DOG'; payload: string }
+  | { type: 'DELETE_ACCOUNT' };
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
-    case 'HYDRATE':
-      return action.payload;
+    case 'HYDRATE': {
+      const saved = action.payload;
+      // Migrate old state that lacks dogs[] / activeDogId
+      if (!saved.dogs || saved.dogs.length === 0) {
+        const dogs = saved.dog ? [saved.dog] : [];
+        return { ...saved, dogs, activeDogId: saved.dog?.id ?? null };
+      }
+      return saved;
+    }
 
-    case 'SET_DOG':
-      return { ...state, dog: action.payload };
+    case 'SET_DOG': {
+      const newDog = action.payload;
+      const idx = state.dogs.findIndex(d => d.id === newDog.id);
+      const newDogs = idx >= 0
+        ? state.dogs.map((d, i) => i === idx ? newDog : d)
+        : [...state.dogs, newDog];
+      return { ...state, dog: newDog, dogs: newDogs, activeDogId: newDog.id };
+    }
 
-    case 'UPDATE_DOG':
-      return state.dog
-        ? { ...state, dog: { ...state.dog, ...action.payload } }
-        : state;
+    case 'UPDATE_DOG': {
+      if (!state.dog) return state;
+      const updated = { ...state.dog, ...action.payload };
+      const newDogs = state.dogs.map(d => d.id === updated.id ? updated : d);
+      return { ...state, dog: updated, dogs: newDogs };
+    }
+
+    case 'ADD_ANOTHER_DOG': {
+      const newDog = action.payload;
+      return {
+        ...state,
+        dog: newDog,
+        dogs: [...state.dogs, newDog],
+        activeDogId: newDog.id,
+      };
+    }
+
+    case 'SWITCH_ACTIVE_DOG': {
+      const target = state.dogs.find(d => d.id === action.payload) ?? null;
+      return { ...state, dog: target, activeDogId: action.payload };
+    }
+
+    case 'REMOVE_DOG': {
+      const remaining = state.dogs.filter(d => d.id !== action.payload);
+      const isActive = state.activeDogId === action.payload;
+      const newActive = isActive ? (remaining[0] ?? null) : state.dog;
+      return {
+        ...state,
+        dogs: remaining,
+        dog: newActive,
+        activeDogId: newActive?.id ?? null,
+      };
+    }
 
     case 'SET_OWNER':
       return {
@@ -142,6 +190,9 @@ function reducer(state: AppState, action: Action): AppState {
         likedDogIds: state.likedDogIds.filter(id => id !== action.payload),
       };
 
+    case 'DELETE_ACCOUNT':
+      return { ...initialState };
+
     default:
       return state;
   }
@@ -152,11 +203,14 @@ function reducer(state: AppState, action: Action): AppState {
 interface AppContextValue {
   state: AppState;
   dispatch: React.Dispatch<Action>;
-  // Convenience helpers
   setDog: (dog: Dog) => void;
   updateDog: (updates: Partial<Dog>) => void;
+  addAnotherDog: (dog: Dog) => void;
+  switchActiveDog: (dogId: string) => void;
+  removeDog: (dogId: string) => void;
   setOwner: (name: string, city: string, photo?: string | null) => void;
   completeOnboarding: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
   addHealthRecord: (record: HealthRecord) => void;
   updateHealthRecord: (record: HealthRecord) => void;
   deleteHealthRecord: (id: string) => void;
@@ -184,31 +238,36 @@ const DAY_MAP: Record<number, string> = {
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(reducer, initialState);
 
-  // Hydrate from storage on mount
   useEffect(() => {
     storage.loadAppState().then(saved => {
       if (saved) dispatch({ type: 'HYDRATE', payload: saved });
     });
   }, []);
 
-  // Persist on every state change (debounced via storage layer)
   useEffect(() => {
     storage.saveAppState(state);
   }, [state]);
 
-  // ── Helpers ──
-
-  const setDog = useCallback((dog: Dog) => dispatch({ type: 'SET_DOG', payload: dog }), []);
+  const setDog = useCallback((dog: Dog) =>
+    dispatch({ type: 'SET_DOG', payload: dog }), []);
 
   const updateDog = useCallback((updates: Partial<Dog>) =>
     dispatch({ type: 'UPDATE_DOG', payload: updates }), []);
+
+  const addAnotherDog = useCallback((dog: Dog) =>
+    dispatch({ type: 'ADD_ANOTHER_DOG', payload: dog }), []);
+
+  const switchActiveDog = useCallback((dogId: string) =>
+    dispatch({ type: 'SWITCH_ACTIVE_DOG', payload: dogId }), []);
+
+  const removeDog = useCallback((dogId: string) =>
+    dispatch({ type: 'REMOVE_DOG', payload: dogId }), []);
 
   const setOwner = useCallback((name: string, city: string, photo?: string | null) =>
     dispatch({ type: 'SET_OWNER', payload: { name, city, photo } }), []);
 
   const completeOnboarding = useCallback(async () => {
     dispatch({ type: 'COMPLETE_ONBOARDING' });
-    // Pre-populate with a few starter matches from mock data
     const starterMatches = MOCK_DOGS.slice(0, 3).map(dog => ({
       id: `match_${dog.id}_${Date.now()}`,
       dog,
@@ -224,6 +283,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       isRead: false,
     }));
     starterMatches.forEach(m => dispatch({ type: 'ADD_MATCH', payload: m }));
+  }, []);
+
+  const deleteAccount = useCallback(async () => {
+    await storage.clearAll();
+    dispatch({ type: 'DELETE_ACCOUNT' });
   }, []);
 
   const addHealthRecord = useCallback((record: HealthRecord) =>
@@ -286,8 +350,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         dispatch,
         setDog,
         updateDog,
+        addAnotherDog,
+        switchActiveDog,
+        removeDog,
         setOwner,
         completeOnboarding,
+        deleteAccount,
         addHealthRecord,
         updateHealthRecord,
         deleteHealthRecord,

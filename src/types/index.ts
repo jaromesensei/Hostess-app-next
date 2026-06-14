@@ -77,7 +77,9 @@ export interface PlaceOfInterest {
 }
 
 export interface AppState {
-  dog: Dog | null;
+  dog: Dog | null;           // active dog (backward compat)
+  dogs: Dog[];               // all dogs
+  activeDogId: string | null;
   ownerName: string;
   ownerCity: string;
   ownerPhoto: string | null;

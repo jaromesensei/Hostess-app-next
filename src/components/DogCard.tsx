@@ -123,6 +123,13 @@ export const DogCard: React.FC<DogCardProps> = ({
           <WText style={styles.dogMetaOnImage}>
             {dog.breed} · {getAgeString(dog.birthDate)} · {distance}
           </WText>
+          {(dog.ownerName || dog.ownerCity) && (
+            <View style={styles.ownerChip}>
+              <WText style={styles.ownerChipText}>
+                👤 {[dog.ownerName, dog.ownerCity].filter(Boolean).join(' · ')}
+              </WText>
+            </View>
+          )}
         </View>
       </View>
 
@@ -221,6 +228,22 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     color: 'rgba(255,255,255,0.75)',
     lineHeight: 20,
+  },
+
+  ownerChip: {
+    marginTop: 5,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+  },
+  ownerChipText: {
+    fontFamily: FontFamily.medium,
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.92)',
   },
 
   // Below image

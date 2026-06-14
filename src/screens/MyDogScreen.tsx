@@ -7,9 +7,15 @@ import {
   TouchableOpacity,
   Alert,
   Platform,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import * as Haptics from 'expo-haptics';
+import { CommonActions } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { useApp } from '@/context/AppContext';
 import { Colors, FontFamily, FontSize, Spacing, Radius, Shadow } from '@/theme';
 import {
@@ -23,7 +29,7 @@ import {
 import { getAgeString } from '@/data/mockDogs';
 import { generateId } from '@/services/storage';
 import { notificationService } from '@/services/notifications';
-import { HealthRecord, Reminder } from '@/types';
+import { Dog, HealthRecord, Reminder } from '@/types';
 
 // ─── Health Record Types ────────────────────────────────────────────────────
 
@@ -99,8 +105,14 @@ function healthTypeIcon(type: HealthType): string {
 // ─── Main Screen ────────────────────────────────────────────────────────────
 
 export const MyDogScreen: React.FC = () => {
-  const { state, addHealthRecord, deleteHealthRecord, addReminder, updateReminder, deleteReminder, toggleReminder } = useApp();
+  const navigation = useNavigation<any>();
+  const {
+    state, addHealthRecord, deleteHealthRecord, addReminder, updateReminder,
+    deleteReminder, toggleReminder, addAnotherDog, switchActiveDog, removeDog,
+    deleteAccount,
+  } = useApp();
   const dog = state.dog;
+  const allDogs = state.dogs;
 
   // ── Health modal state ────
   const [showHealthModal, setShowHealthModal] = useState(false);
@@ -111,6 +123,14 @@ export const MyDogScreen: React.FC = () => {
   const [hNext,    setHNext]    = useState('');
   const [hNotes,   setHNotes]   = useState('');
   const [hError,   setHError]   = useState('');
+
+  // ── Add dog modal state ───
+  const [showAddDogModal, setShowAddDogModal] = useState(false);
+  const [addPhoto, setAddPhoto] = useState<string | null>(null);
+  const [addName, setAddName] = useState('');
+  const [addBreed, setAddBreed] = useState('');
+  const [addGender, setAddGender] = useState<'male' | 'female'>('male');
+  const [addError, setAddError] = useState('');
 
   // ── Reminder modal state ──
   const [showReminderModal, setShowReminderModal] = useState(false);
@@ -217,6 +237,84 @@ export const MyDogScreen: React.FC = () => {
     setRActive(rem.isActive);
     setRError('');
     setShowReminderModal(true);
+  };
+
+  // ── Add dog handlers ─────
+  const pickAddPhoto = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true, aspect: [1, 1], quality: 0.85,
+    });
+    if (!result.canceled && result.assets[0]) setAddPhoto(result.assets[0].uri);
+  };
+
+  const resetAddDogForm = () => {
+    setAddPhoto(null); setAddName(''); setAddBreed('');
+    setAddGender('male'); setAddError('');
+  };
+
+  const handleSaveNewDog = () => {
+    if (!addName.trim()) { setAddError('אנא הכנס שם לכלב'); return; }
+    if (!addBreed.trim()) { setAddError('אנא הכנס גזע'); return; }
+    const newDog: Dog = {
+      id: generateId('dog'),
+      name: addName.trim(),
+      breed: addBreed.trim(),
+      birthDate: new Date().toISOString().split('T')[0],
+      gender: addGender,
+      isNeutered: false,
+      size: 'm',
+      weight: 0,
+      furColor: '',
+      photos: addPhoto ? [addPhoto] : [],
+      personality: [],
+      energyLevel: 3,
+      goodWithDogs: true,
+      goodWithKids: true,
+      goodWithCats: false,
+      trained: 'none',
+      activities: [],
+      lookingFor: [],
+      searchRadius: 10,
+      bio: '',
+    };
+    addAnotherDog(newDog);
+    setShowAddDogModal(false);
+    resetAddDogForm();
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'מחיקת חשבון',
+      'פעולה זו תמחק את כל הנתונים שלך לצמיתות ולא ניתן לשחזרה.',
+      [
+        { text: 'ביטול', style: 'cancel' },
+        {
+          text: 'מחק חשבון',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'אישור סופי',
+              'האם אתה בטוח לחלוטין? כל הנתונים, ההתאמות וההיסטוריה יימחקו.',
+              [
+                { text: 'ביטול', style: 'cancel' },
+                {
+                  text: 'כן, מחק הכל',
+                  style: 'destructive',
+                  onPress: async () => {
+                    await deleteAccount();
+                    navigation.dispatch(
+                      CommonActions.reset({ index: 0, routes: [{ name: 'Onboarding' }] })
+                    );
+                  },
+                },
+              ]
+            );
+          },
+        },
+      ]
+    );
   };
 
   const handleDeleteHealth = (id: string) => {
@@ -354,6 +452,45 @@ export const MyDogScreen: React.FC = () => {
           ))}
         </ScrollView>
 
+        {/* ═══ DOG SWITCHER ═══ */}
+        {allDogs.length > 1 && (
+          <View style={styles.switcherSection}>
+            <View style={styles.switcherRow}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.switcherScroll}>
+                {allDogs.map(d => (
+                  <TouchableOpacity
+                    key={d.id}
+                    style={[styles.switcherChip, d.id === state.activeDogId && styles.switcherChipActive]}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      switchActiveDog(d.id);
+                    }}
+                    activeOpacity={0.75}
+                  >
+                    {d.photos?.[0] ? (
+                      <Image source={{ uri: d.photos[0] }} style={styles.switcherAvatar} />
+                    ) : (
+                      <View style={[styles.switcherAvatar, styles.switcherAvatarPlaceholder]}>
+                        <WText style={{ fontSize: 14 }}>🐾</WText>
+                      </View>
+                    )}
+                    <WText style={[styles.switcherLabel, d.id === state.activeDogId && styles.switcherLabelActive]}>
+                      {d.name}
+                    </WText>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <TouchableOpacity
+                style={styles.addDogBtn}
+                onPress={() => { resetAddDogForm(); setShowAddDogModal(true); }}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="add-circle" size={22} color={Colors.terra} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
         {/* ═══ HEALTH PASSPORT ═══ */}
 
         <View style={styles.sectionHeader}>
@@ -459,9 +596,92 @@ export const MyDogScreen: React.FC = () => {
           ))
         )}
 
+        {/* ═══ ADD DOG (single dog view) ═══ */}
+        {allDogs.length <= 1 && (
+          <TouchableOpacity
+            style={styles.addAnotherDogRow}
+            onPress={() => { resetAddDogForm(); setShowAddDogModal(true); }}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="add-circle-outline" size={20} color={Colors.terra} />
+            <WText style={styles.addAnotherDogText}>הוסף כלב נוסף</WText>
+          </TouchableOpacity>
+        )}
+
+        {/* ═══ DANGER ZONE ═══ */}
+        <View style={[styles.sectionHeader, { marginTop: Spacing['2xl'] }]}>
+          <WText variant="h4" color={Colors.error}>⚠️ אזור מסוכן</WText>
+        </View>
+        <TouchableOpacity
+          style={styles.deleteAccountBtn}
+          onPress={handleDeleteAccount}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="trash-outline" size={18} color={Colors.error} />
+          <WText style={styles.deleteAccountText}>מחק חשבון</WText>
+        </TouchableOpacity>
+        <WText variant="caption" color={Colors.gray} style={styles.deleteAccountHint}>
+          פעולה זו בלתי הפיכה. כל הנתונים, ההתאמות וההיסטוריה ימחקו לצמיתות.
+        </WText>
+
         {/* Bottom padding */}
         <View style={{ height: Spacing['3xl'] }} />
       </ScrollView>
+
+      {/* ═══ ADD ANOTHER DOG MODAL ═══ */}
+      <WBottomSheet
+        visible={showAddDogModal}
+        onClose={() => { setShowAddDogModal(false); resetAddDogForm(); }}
+        snapHeight={420}
+        scrollable
+      >
+        <View style={styles.modalInner}>
+          <WText variant="h3" color={Colors.forest} right style={{ marginBottom: Spacing.base }}>
+            הוסף כלב נוסף 🐾
+          </WText>
+
+          {/* Photo picker */}
+          <TouchableOpacity onPress={pickAddPhoto} style={styles.addDogPhotoRow} activeOpacity={0.8}>
+            {addPhoto ? (
+              <Image source={{ uri: addPhoto }} style={styles.addDogPhoto} />
+            ) : (
+              <View style={[styles.addDogPhoto, styles.addDogPhotoPlaceholder]}>
+                <Ionicons name="camera" size={28} color={Colors.gray} />
+              </View>
+            )}
+            <WText variant="caption" color={Colors.gray} style={{ marginTop: Spacing.xs }}>
+              תמונת הכלב
+            </WText>
+          </TouchableOpacity>
+
+          <WInput label="שם הכלב" value={addName} onChangeText={setAddName} placeholder="מה שמו?" />
+          <View style={{ height: Spacing.sm }} />
+          <WInput label="גזע" value={addBreed} onChangeText={setAddBreed} placeholder="גזע הכלב" />
+          <View style={{ height: Spacing.base }} />
+
+          {/* Gender */}
+          <View style={styles.chipRow}>
+            {(['male', 'female'] as const).map(g => (
+              <TouchableOpacity
+                key={g}
+                style={[styles.chip, addGender === g && styles.chipSelected]}
+                onPress={() => setAddGender(g)}
+              >
+                <WText style={styles.chipText}>{g === 'male' ? '♂ זכר' : '♀ נקבה'}</WText>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {addError ? (
+            <WText variant="caption" color={Colors.error} right style={{ marginTop: Spacing.xs }}>
+              {addError}
+            </WText>
+          ) : null}
+
+          <View style={{ height: Spacing.base }} />
+          <WButton label="הוסף כלב" onPress={handleSaveNewDog} variant="primary" />
+        </View>
+      </WBottomSheet>
 
       {/* ═══ ADD HEALTH RECORD MODAL ═══ */}
       <WBottomSheet
@@ -859,6 +1079,122 @@ const styles = StyleSheet.create({
   reminderContent: {
     flex: 1,
     alignItems: 'flex-end',
+  },
+
+  // Dog switcher
+  switcherSection: {
+    marginHorizontal: Spacing.lg,
+    marginTop: Spacing.md,
+  },
+  switcherRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  switcherScroll: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    paddingRight: Spacing.sm,
+  },
+  switcherChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.cream2,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+  },
+  switcherChipActive: {
+    borderColor: Colors.terra,
+    backgroundColor: Colors.terraDim,
+  },
+  switcherAvatar: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+  },
+  switcherAvatarPlaceholder: {
+    backgroundColor: Colors.cream,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  switcherLabel: {
+    fontFamily: FontFamily.medium,
+    fontSize: FontSize.sm,
+    color: Colors.gray,
+  },
+  switcherLabelActive: {
+    color: Colors.terra,
+    fontFamily: FontFamily.bold,
+  },
+  addDogBtn: {
+    padding: Spacing.sm,
+  },
+
+  // Add another dog (single dog view)
+  addAnotherDogRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginHorizontal: Spacing.lg,
+    marginTop: Spacing.lg,
+    paddingVertical: Spacing.base,
+    paddingHorizontal: Spacing.base,
+    backgroundColor: Colors.terraDim,
+    borderRadius: Radius.medium,
+    borderWidth: 1.5,
+    borderColor: Colors.terra,
+    borderStyle: 'dashed',
+  },
+  addAnotherDogText: {
+    fontFamily: FontFamily.semibold,
+    fontSize: FontSize.base,
+    color: Colors.terra,
+  },
+
+  // Delete account
+  deleteAccountBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginHorizontal: Spacing.lg,
+    paddingVertical: Spacing.base,
+    paddingHorizontal: Spacing.base,
+    backgroundColor: 'rgba(220,53,69,0.06)',
+    borderRadius: Radius.medium,
+    borderWidth: 1.5,
+    borderColor: Colors.error,
+  },
+  deleteAccountText: {
+    fontFamily: FontFamily.semibold,
+    fontSize: FontSize.base,
+    color: Colors.error,
+  },
+  deleteAccountHint: {
+    marginHorizontal: Spacing.lg,
+    marginTop: Spacing.xs,
+    textAlign: 'right',
+  },
+
+  // Add dog photo
+  addDogPhotoRow: {
+    alignItems: 'center',
+    marginBottom: Spacing.base,
+  },
+  addDogPhoto: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+  },
+  addDogPhotoPlaceholder: {
+    backgroundColor: Colors.cream2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    borderStyle: 'dashed',
   },
 
   // Modal
