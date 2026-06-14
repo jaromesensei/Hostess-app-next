@@ -88,6 +88,7 @@ export interface AppState {
   matches: Match[];
   likedDogIds: string[];
   isOnboardingComplete: boolean;
+  isAddingAnotherDog: boolean; // transient — never persisted
 }
 
 export type RootStackParamList = {

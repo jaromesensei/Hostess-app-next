@@ -23,6 +23,7 @@ const initialState: AppState = {
   matches: [],
   likedDogIds: [],
   isOnboardingComplete: false,
+  isAddingAnotherDog: false,
 };
 
 // ─── Actions ─────────────────────────────────────────────────────────────────
@@ -34,6 +35,8 @@ type Action =
   | { type: 'ADD_ANOTHER_DOG'; payload: Dog }
   | { type: 'SWITCH_ACTIVE_DOG'; payload: string }
   | { type: 'REMOVE_DOG'; payload: string }
+  | { type: 'START_ADDING_ANOTHER_DOG' }
+  | { type: 'STOP_ADDING_ANOTHER_DOG' }
   | { type: 'SET_OWNER'; payload: { name: string; city: string; photo?: string | null } }
   | { type: 'COMPLETE_ONBOARDING' }
   | { type: 'ADD_HEALTH_RECORD'; payload: HealthRecord }
@@ -54,12 +57,15 @@ function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case 'HYDRATE': {
       const saved = action.payload;
-      // Migrate old state that lacks dogs[] / activeDogId
-      if (!saved.dogs || saved.dogs.length === 0) {
-        const dogs = saved.dog ? [saved.dog] : [];
-        return { ...saved, dogs, activeDogId: saved.dog?.id ?? null };
-      }
-      return saved;
+      const dogs = (!saved.dogs || saved.dogs.length === 0) && saved.dog
+        ? [saved.dog]
+        : (saved.dogs ?? []);
+      return {
+        ...saved,
+        dogs,
+        activeDogId: saved.activeDogId ?? saved.dog?.id ?? null,
+        isAddingAnotherDog: false, // never restore transient flag
+      };
     }
 
     case 'SET_DOG': {
@@ -190,6 +196,12 @@ function reducer(state: AppState, action: Action): AppState {
         likedDogIds: state.likedDogIds.filter(id => id !== action.payload),
       };
 
+    case 'START_ADDING_ANOTHER_DOG':
+      return { ...state, isAddingAnotherDog: true };
+
+    case 'STOP_ADDING_ANOTHER_DOG':
+      return { ...state, isAddingAnotherDog: false };
+
     case 'DELETE_ACCOUNT':
       return { ...initialState };
 
@@ -208,6 +220,8 @@ interface AppContextValue {
   addAnotherDog: (dog: Dog) => void;
   switchActiveDog: (dogId: string) => void;
   removeDog: (dogId: string) => void;
+  startAddingAnotherDog: () => void;
+  stopAddingAnotherDog: () => void;
   setOwner: (name: string, city: string, photo?: string | null) => void;
   completeOnboarding: () => Promise<void>;
   deleteAccount: () => Promise<void>;
@@ -262,6 +276,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const removeDog = useCallback((dogId: string) =>
     dispatch({ type: 'REMOVE_DOG', payload: dogId }), []);
+
+  const startAddingAnotherDog = useCallback(() =>
+    dispatch({ type: 'START_ADDING_ANOTHER_DOG' }), []);
+
+  const stopAddingAnotherDog = useCallback(() =>
+    dispatch({ type: 'STOP_ADDING_ANOTHER_DOG' }), []);
 
   const setOwner = useCallback((name: string, city: string, photo?: string | null) =>
     dispatch({ type: 'SET_OWNER', payload: { name, city, photo } }), []);
@@ -353,6 +373,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addAnotherDog,
         switchActiveDog,
         removeDog,
+        startAddingAnotherDog,
+        stopAddingAnotherDog,
         setOwner,
         completeOnboarding,
         deleteAccount,

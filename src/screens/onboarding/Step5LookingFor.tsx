@@ -61,7 +61,8 @@ export const OnboardingStep5: React.FC = () => {
   const onboardingNav = useNavigation<OnboardingNavProp>();
   const rootNav = useNavigation<RootNavType>();
 
-  const { state, updateDog, completeOnboarding } = useApp();
+  const { state, updateDog, completeOnboarding, stopAddingAnotherDog } = useApp();
+  const isAdding = state.isAddingAnotherDog;
   const dog = state.dog;
   const dogName = dog?.name ?? 'הכלב';
 
@@ -89,14 +90,15 @@ export const OnboardingStep5: React.FC = () => {
     setLoading(true);
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      updateDog({
-        lookingFor,
-        searchRadius,
-        bio: bio.trim(),
-        trained: 'basic',
-      });
-      await completeOnboarding();
-      (rootNav as any).navigate('WelcomeMoment');
+      updateDog({ lookingFor, searchRadius, bio: bio.trim(), trained: 'basic' });
+
+      if (isAdding) {
+        stopAddingAnotherDog();
+        (rootNav as any).navigate('MainApp');
+      } else {
+        await completeOnboarding();
+        (rootNav as any).navigate('WelcomeMoment');
+      }
     } catch (e) {
       setLoading(false);
     }

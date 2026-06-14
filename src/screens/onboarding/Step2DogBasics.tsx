@@ -34,7 +34,8 @@ type NavProp = NativeStackNavigationProp<OnboardingStackParamList>;
 
 export const OnboardingStep2: React.FC = () => {
   const navigation = useNavigation<NavProp>();
-  const { setDog } = useApp();
+  const { state, setDog, addAnotherDog } = useApp();
+  const isAdding = state.isAddingAnotherDog;
 
   const [dogPhoto, setDogPhoto] = useState<string | null>(null);
   const [dogName, setDogName] = useState('');
@@ -124,7 +125,7 @@ export const OnboardingStep2: React.FC = () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     const dogId = generateId('dog');
-    setDog({
+    const dogPayload = {
       id: dogId,
       name: dogName.trim(),
       breed: breedSelected,
@@ -145,7 +146,13 @@ export const OnboardingStep2: React.FC = () => {
       lookingFor: [],
       searchRadius: 10,
       bio: '',
-    });
+    };
+
+    if (isAdding) {
+      addAnotherDog(dogPayload);
+    } else {
+      setDog(dogPayload);
+    }
 
     setLoading(false);
     navigation.navigate('Step3');

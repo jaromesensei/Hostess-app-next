@@ -7,12 +7,10 @@ import {
   TouchableOpacity,
   Alert,
   Platform,
-  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { CommonActions } from '@react-navigation/native';
 import { useNavigation } from '@react-navigation/native';
@@ -29,7 +27,7 @@ import {
 import { getAgeString } from '@/data/mockDogs';
 import { generateId } from '@/services/storage';
 import { notificationService } from '@/services/notifications';
-import { Dog, HealthRecord, Reminder } from '@/types';
+import { HealthRecord, Reminder } from '@/types';
 
 // ─── Health Record Types ────────────────────────────────────────────────────
 
@@ -108,8 +106,8 @@ export const MyDogScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const {
     state, addHealthRecord, deleteHealthRecord, addReminder, updateReminder,
-    deleteReminder, toggleReminder, addAnotherDog, switchActiveDog, removeDog,
-    deleteAccount,
+    deleteReminder, toggleReminder, switchActiveDog, removeDog,
+    deleteAccount, startAddingAnotherDog,
   } = useApp();
   const dog = state.dog;
   const allDogs = state.dogs;
@@ -123,14 +121,6 @@ export const MyDogScreen: React.FC = () => {
   const [hNext,    setHNext]    = useState('');
   const [hNotes,   setHNotes]   = useState('');
   const [hError,   setHError]   = useState('');
-
-  // ── Add dog modal state ───
-  const [showAddDogModal, setShowAddDogModal] = useState(false);
-  const [addPhoto, setAddPhoto] = useState<string | null>(null);
-  const [addName, setAddName] = useState('');
-  const [addBreed, setAddBreed] = useState('');
-  const [addGender, setAddGender] = useState<'male' | 'female'>('male');
-  const [addError, setAddError] = useState('');
 
   // ── Reminder modal state ──
   const [showReminderModal, setShowReminderModal] = useState(false);
@@ -239,49 +229,14 @@ export const MyDogScreen: React.FC = () => {
     setShowReminderModal(true);
   };
 
-  // ── Add dog handlers ─────
-  const pickAddPhoto = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true, aspect: [1, 1], quality: 0.85,
-    });
-    if (!result.canceled && result.assets[0]) setAddPhoto(result.assets[0].uri);
-  };
-
-  const resetAddDogForm = () => {
-    setAddPhoto(null); setAddName(''); setAddBreed('');
-    setAddGender('male'); setAddError('');
-  };
-
-  const handleSaveNewDog = () => {
-    if (!addName.trim()) { setAddError('אנא הכנס שם לכלב'); return; }
-    if (!addBreed.trim()) { setAddError('אנא הכנס גזע'); return; }
-    const newDog: Dog = {
-      id: generateId('dog'),
-      name: addName.trim(),
-      breed: addBreed.trim(),
-      birthDate: new Date().toISOString().split('T')[0],
-      gender: addGender,
-      isNeutered: false,
-      size: 'm',
-      weight: 0,
-      furColor: '',
-      photos: addPhoto ? [addPhoto] : [],
-      personality: [],
-      energyLevel: 3,
-      goodWithDogs: true,
-      goodWithKids: true,
-      goodWithCats: false,
-      trained: 'none',
-      activities: [],
-      lookingFor: [],
-      searchRadius: 10,
-      bio: '',
-    };
-    addAnotherDog(newDog);
-    setShowAddDogModal(false);
-    resetAddDogForm();
+  // ── Add dog handler ──────
+  const handleAddAnotherDog = () => {
+    startAddingAnotherDog();
+    setTimeout(() => {
+      navigation.dispatch(
+        CommonActions.navigate({ name: 'Onboarding' })
+      );
+    }, 50);
   };
 
   const handleDeleteAccount = () => {
@@ -482,7 +437,7 @@ export const MyDogScreen: React.FC = () => {
               </ScrollView>
               <TouchableOpacity
                 style={styles.addDogBtn}
-                onPress={() => { resetAddDogForm(); setShowAddDogModal(true); }}
+                onPress={handleAddAnotherDog}
                 activeOpacity={0.8}
               >
                 <Ionicons name="add-circle" size={22} color={Colors.terra} />
@@ -600,7 +555,7 @@ export const MyDogScreen: React.FC = () => {
         {allDogs.length <= 1 && (
           <TouchableOpacity
             style={styles.addAnotherDogRow}
-            onPress={() => { resetAddDogForm(); setShowAddDogModal(true); }}
+            onPress={handleAddAnotherDog}
             activeOpacity={0.8}
           >
             <Ionicons name="add-circle-outline" size={20} color={Colors.terra} />
@@ -627,61 +582,6 @@ export const MyDogScreen: React.FC = () => {
         {/* Bottom padding */}
         <View style={{ height: Spacing['3xl'] }} />
       </ScrollView>
-
-      {/* ═══ ADD ANOTHER DOG MODAL ═══ */}
-      <WBottomSheet
-        visible={showAddDogModal}
-        onClose={() => { setShowAddDogModal(false); resetAddDogForm(); }}
-        snapHeight={420}
-        scrollable
-      >
-        <View style={styles.modalInner}>
-          <WText variant="h3" color={Colors.forest} right style={{ marginBottom: Spacing.base }}>
-            הוסף כלב נוסף 🐾
-          </WText>
-
-          {/* Photo picker */}
-          <TouchableOpacity onPress={pickAddPhoto} style={styles.addDogPhotoRow} activeOpacity={0.8}>
-            {addPhoto ? (
-              <Image source={{ uri: addPhoto }} style={styles.addDogPhoto} />
-            ) : (
-              <View style={[styles.addDogPhoto, styles.addDogPhotoPlaceholder]}>
-                <Ionicons name="camera" size={28} color={Colors.gray} />
-              </View>
-            )}
-            <WText variant="caption" color={Colors.gray} style={{ marginTop: Spacing.xs }}>
-              תמונת הכלב
-            </WText>
-          </TouchableOpacity>
-
-          <WInput label="שם הכלב" value={addName} onChangeText={setAddName} placeholder="מה שמו?" />
-          <View style={{ height: Spacing.sm }} />
-          <WInput label="גזע" value={addBreed} onChangeText={setAddBreed} placeholder="גזע הכלב" />
-          <View style={{ height: Spacing.base }} />
-
-          {/* Gender */}
-          <View style={styles.chipRow}>
-            {(['male', 'female'] as const).map(g => (
-              <TouchableOpacity
-                key={g}
-                style={[styles.chip, addGender === g && styles.chipSelected]}
-                onPress={() => setAddGender(g)}
-              >
-                <WText style={styles.chipText}>{g === 'male' ? '♂ זכר' : '♀ נקבה'}</WText>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {addError ? (
-            <WText variant="caption" color={Colors.error} right style={{ marginTop: Spacing.xs }}>
-              {addError}
-            </WText>
-          ) : null}
-
-          <View style={{ height: Spacing.base }} />
-          <WButton label="הוסף כלב" onPress={handleSaveNewDog} variant="primary" />
-        </View>
-      </WBottomSheet>
 
       {/* ═══ ADD HEALTH RECORD MODAL ═══ */}
       <WBottomSheet
