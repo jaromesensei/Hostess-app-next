@@ -62,6 +62,18 @@ export interface Message {
   timestamp: string;
 }
 
+export interface Notification {
+  id: string;
+  type: 'like' | 'comment' | 'follow' | 'event' | 'match';
+  actorDogName: string;
+  actorDogPhoto: string;
+  text: string;
+  postPhoto?: string;
+  eventEmoji?: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
 export interface ServiceProvider {
   id: string;
   name: string;

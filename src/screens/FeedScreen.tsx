@@ -28,6 +28,9 @@ import { useApp } from '@/context/AppContext';
 import { Post, PostComment, Story, Event } from '@/types';
 import { MOCK_POSTS, MOCK_STORIES } from '@/data/mockFeed';
 import { MOCK_EVENTS, formatEventDate } from '@/data/mockEvents';
+import { MOCK_NOTIFICATIONS } from '@/data/mockNotifications';
+import { NotificationsModal } from '@/screens/NotificationsModal';
+import { DogProfileModal, DogProfileInfo } from '@/screens/DogProfileModal';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -136,9 +139,10 @@ interface PostCardProps {
   likeAnim: Animated.Value;
   onLike: (postId: string) => void;
   onCommentPress: (post: Post) => void;
+  onAvatarPress: (post: Post) => void;
 }
 
-const PostCard = React.memo<PostCardProps>(({ post, likeAnim, onLike, onCommentPress }) => {
+const PostCard = React.memo<PostCardProps>(({ post, likeAnim, onLike, onCommentPress, onAvatarPress }) => {
   const [captionExpanded, setCaptionExpanded] = useState(false);
   const shortened = post.caption.length > 88;
 
@@ -146,7 +150,7 @@ const PostCard = React.memo<PostCardProps>(({ post, likeAnim, onLike, onCommentP
     <View style={styles.postCard}>
       {/* Header */}
       <View style={styles.postHeader}>
-        <TouchableOpacity style={styles.postHeaderLeft} activeOpacity={0.8}>
+        <TouchableOpacity style={styles.postHeaderLeft} activeOpacity={0.8} onPress={() => onAvatarPress(post)}>
           <Image source={{ uri: post.dogPhoto }} style={styles.postAvatar} />
           <View style={styles.postHeaderInfo}>
             <WText style={styles.postDogName}>{post.dogName}</WText>
@@ -248,6 +252,16 @@ export const FeedScreen: React.FC = () => {
 
   // Event details modal
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+
+  // Notifications modal
+  const [showNotifications, setShowNotifications] = useState(false);
+  const unreadNotifCount = useMemo(
+    () => MOCK_NOTIFICATIONS.filter(n => !n.isRead).length,
+    [],
+  );
+
+  // Dog profile modal
+  const [dogProfile, setDogProfile] = useState<DogProfileInfo | null>(null);
 
   const commentsPost = useMemo(
     () => commentsPostId ? feedPosts.find(p => p.id === commentsPostId) ?? null : null,
@@ -355,6 +369,20 @@ export const FeedScreen: React.FC = () => {
     [stories],
   );
 
+  // ── Dog profile ───────────────────────────────────────────────────────────────
+
+  const handleAvatarPress = useCallback((post: Post) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setDogProfile({
+      dogId: post.dogId,
+      dogName: post.dogName,
+      dogPhoto: post.dogPhoto,
+      ownerName: post.ownerName,
+      ownerCity: post.ownerCity,
+      userPosts: state.posts,
+    });
+  }, [state.posts]);
+
   // ── Events ────────────────────────────────────────────────────────────────────
 
   const handleJoinEvent = useCallback((eventId: string) => {
@@ -382,8 +410,9 @@ export const FeedScreen: React.FC = () => {
       likeAnim={getLikeAnim(item.id)}
       onLike={handleLike}
       onCommentPress={handleCommentPress}
+      onAvatarPress={handleAvatarPress}
     />
-  ), [getLikeAnim, handleLike, handleCommentPress]);
+  ), [getLikeAnim, handleLike, handleCommentPress, handleAvatarPress]);
 
   const listHeader = useMemo(() => (
     <View>
@@ -654,8 +683,19 @@ export const FeedScreen: React.FC = () => {
           <Ionicons name="camera-outline" size={26} color={Colors.text} />
         </TouchableOpacity>
         <WText style={styles.appLogo}>Woofy 🐾</WText>
-        <TouchableOpacity hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <TouchableOpacity
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={() => setShowNotifications(true)}
+          style={{ position: 'relative' }}
+        >
           <Ionicons name="heart-outline" size={26} color={Colors.text} />
+          {unreadNotifCount > 0 && (
+            <View style={styles.notifBadge}>
+              <WText style={styles.notifBadgeText}>
+                {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
+              </WText>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -671,6 +711,16 @@ export const FeedScreen: React.FC = () => {
       {CommentsModal}
       {CreatePostModal}
       {EventModal}
+
+      <NotificationsModal
+        visible={showNotifications}
+        onClose={() => setShowNotifications(false)}
+      />
+
+      <DogProfileModal
+        profile={dogProfile}
+        onClose={() => setDogProfile(null)}
+      />
     </SafeAreaView>
   );
 };
@@ -697,6 +747,26 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xl,
     color: Colors.forest,
     letterSpacing: -0.5,
+  },
+  notifBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -5,
+    backgroundColor: Colors.terra,
+    borderRadius: Radius.pill,
+    minWidth: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+    borderWidth: 1.5,
+    borderColor: Colors.white,
+  },
+  notifBadgeText: {
+    fontFamily: FontFamily.bold,
+    fontSize: 9,
+    color: Colors.white,
+    lineHeight: 12,
   },
 
   // Stories
