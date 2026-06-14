@@ -62,6 +62,24 @@ export interface Message {
   timestamp: string;
 }
 
+export interface Event {
+  id: string;
+  title: string;
+  description: string;
+  date: string;            // ISO date
+  time: string;            // HH:MM
+  location: string;
+  address: string;
+  organizer: string;
+  organizerDogPhoto: string;
+  category: 'walk' | 'training' | 'meetup' | 'competition';
+  emoji: string;
+  color: string;
+  attendees: number;
+  maxAttendees?: number;
+  isAttending: boolean;
+}
+
 export interface PostComment {
   id: string;
   authorDogName: string;
