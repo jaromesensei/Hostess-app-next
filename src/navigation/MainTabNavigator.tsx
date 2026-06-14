@@ -10,7 +10,7 @@ import { Colors, FontFamily, Shadow } from '@/theme';
 import { WText } from '@/components/ui';
 import { useApp } from '@/context/AppContext';
 
-import { HomeScreen } from '@/screens/HomeScreen';
+import { FeedScreen } from '@/screens/FeedScreen';
 import { DiscoverScreen } from '@/screens/DiscoverScreen';
 import { MapScreen } from '@/screens/MapScreen';
 import { MyDogScreen } from '@/screens/MyDogScreen';
@@ -28,7 +28,7 @@ interface TabItem {
 }
 
 const TAB_ITEMS: TabItem[] = [
-  { name: 'Home',     label: 'בית',      icon: 'home-outline',       iconFocused: 'home'       },
+  { name: 'Home',     label: 'פיד',      icon: 'home-outline',       iconFocused: 'home'       },
   { name: 'Discover', label: 'גילוי',    icon: 'heart-outline',      iconFocused: 'heart'      },
   { name: 'Map',      label: 'מפה',      icon: 'map-outline',        iconFocused: 'map'        },
   { name: 'MyDog',    label: 'הכלב שלי', icon: 'paw-outline',        iconFocused: 'paw'        },
@@ -84,7 +84,7 @@ export const MainTabNavigator: React.FC = () => {
         </View>
       )}
     >
-      <Tab.Screen name="Home"     component={HomeScreen} />
+      <Tab.Screen name="Home"     component={FeedScreen} />
       <Tab.Screen name="Discover" component={DiscoverScreen} />
       <Tab.Screen name="Map"      component={MapScreen} />
       <Tab.Screen name="MyDog"    component={MyDogScreen} />

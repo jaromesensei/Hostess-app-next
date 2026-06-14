@@ -62,6 +62,39 @@ export interface Message {
   timestamp: string;
 }
 
+export interface PostComment {
+  id: string;
+  authorDogName: string;
+  authorDogPhoto: string;
+  authorOwnerName: string;
+  text: string;
+  createdAt: string;
+}
+
+export interface Post {
+  id: string;
+  dogId: string;
+  dogName: string;
+  dogPhoto: string;
+  ownerName: string;
+  ownerCity: string;
+  photo: string;
+  caption: string;
+  likes: number;
+  likedByMe: boolean;
+  comments: PostComment[];
+  createdAt: string;
+}
+
+export interface Story {
+  id: string;
+  dogId: string;
+  dogName: string;
+  dogPhoto: string;
+  seen: boolean;
+  createdAt: string;
+}
+
 export interface PlaceOfInterest {
   id: string;
   name: string;
@@ -87,6 +120,7 @@ export interface AppState {
   reminders: Reminder[];
   matches: Match[];
   likedDogIds: string[];
+  posts: Post[];               // user-created posts
   isOnboardingComplete: boolean;
   isAddingAnotherDog: boolean; // transient — never persisted
 }

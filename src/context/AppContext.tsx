@@ -5,7 +5,7 @@ import React, {
   useEffect,
   useCallback,
 } from 'react';
-import { AppState, Dog, HealthRecord, Reminder, Match, Message } from '@/types';
+import { AppState, Dog, HealthRecord, Reminder, Match, Message, Post } from '@/types';
 import { storage } from '@/services/storage';
 import { MOCK_DOGS } from '@/data/mockDogs';
 
@@ -22,6 +22,7 @@ const initialState: AppState = {
   reminders: [],
   matches: [],
   likedDogIds: [],
+  posts: [],
   isOnboardingComplete: false,
   isAddingAnotherDog: false,
 };
@@ -51,6 +52,7 @@ type Action =
   | { type: 'MARK_MATCH_READ'; payload: string }
   | { type: 'LIKE_DOG'; payload: string }
   | { type: 'UNLIKE_DOG'; payload: string }
+  | { type: 'ADD_POST'; payload: Post }
   | { type: 'DELETE_ACCOUNT' };
 
 function reducer(state: AppState, action: Action): AppState {
@@ -63,6 +65,7 @@ function reducer(state: AppState, action: Action): AppState {
       return {
         ...saved,
         dogs,
+        posts: saved.posts ?? [],
         activeDogId: saved.activeDogId ?? saved.dog?.id ?? null,
         isAddingAnotherDog: false, // never restore transient flag
       };
@@ -202,6 +205,9 @@ function reducer(state: AppState, action: Action): AppState {
     case 'STOP_ADDING_ANOTHER_DOG':
       return { ...state, isAddingAnotherDog: false };
 
+    case 'ADD_POST':
+      return { ...state, posts: [action.payload, ...state.posts] };
+
     case 'DELETE_ACCOUNT':
       return { ...initialState };
 
@@ -237,6 +243,7 @@ interface AppContextValue {
   markMatchRead: (matchId: string) => void;
   likeDog: (id: string) => void;
   unlikeDog: (id: string) => void;
+  addPost: (post: Post) => void;
   todaysReminders: () => Reminder[];
   unreadMatchCount: () => number;
 }
@@ -355,6 +362,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const unlikeDog = useCallback((id: string) =>
     dispatch({ type: 'UNLIKE_DOG', payload: id }), []);
 
+  const addPost = useCallback((post: Post) =>
+    dispatch({ type: 'ADD_POST', payload: post }), []);
+
   const todaysReminders = useCallback((): Reminder[] => {
     const today = DAY_MAP[new Date().getDay()];
     return state.reminders.filter(r => r.isActive && r.days.includes(today));
@@ -390,6 +400,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         markMatchRead,
         likeDog,
         unlikeDog,
+        addPost,
         todaysReminders,
         unreadMatchCount,
       }}
