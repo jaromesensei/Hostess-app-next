@@ -30,7 +30,7 @@ interface TabItem {
 const TAB_ITEMS: TabItem[] = [
   { name: 'Home',     label: 'פיד',      icon: 'home-outline',       iconFocused: 'home'       },
   { name: 'Discover', label: 'גילוי',    icon: 'heart-outline',      iconFocused: 'heart'      },
-  { name: 'Map',      label: 'מפה',      icon: 'map-outline',        iconFocused: 'map'        },
+  { name: 'Map',      label: 'חקור',     icon: 'compass-outline',    iconFocused: 'compass'    },
   { name: 'MyDog',    label: 'הכלב שלי', icon: 'paw-outline',        iconFocused: 'paw'        },
   { name: 'Messages', label: 'הודעות',   icon: 'chatbubble-outline', iconFocused: 'chatbubble' },
 ];

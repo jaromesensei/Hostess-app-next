@@ -62,6 +62,25 @@ export interface Message {
   timestamp: string;
 }
 
+export interface ServiceProvider {
+  id: string;
+  name: string;
+  ownerName: string;
+  photo: string;
+  category: 'walker' | 'groomer' | 'trainer' | 'sitter' | 'vet';
+  rating: number;
+  reviewCount: number;
+  priceFrom: number;
+  pricePer: 'hour' | 'session' | 'day';
+  location: string;
+  distanceKm: number;
+  isVerified: boolean;
+  isAvailable: boolean;
+  badges: string[];
+  bio: string;
+  services: { label: string; price: number; per: string }[];
+}
+
 export interface Event {
   id: string;
   title: string;
