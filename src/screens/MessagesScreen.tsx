@@ -1,232 +1,330 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useRef } from 'react';
 import {
   View,
   FlatList,
   StyleSheet,
   TouchableOpacity,
+  Image,
+  Alert,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Swipeable } from 'react-native-gesture-handler';
 import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+
 import { useApp } from '@/context/AppContext';
 import { Colors, FontFamily, FontSize, Spacing, Radius, Shadow } from '@/theme';
-import { WText, WAvatar, WButton } from '@/components/ui';
+import { WText, WAvatar } from '@/components/ui';
 import { Match } from '@/types';
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatMatchTime(iso: string): string {
+function formatTime(iso: string): string {
   const now = new Date();
-  const d = new Date(iso);
-  const diffMs = now.getTime() - d.getTime();
-  const diffHours = diffMs / (1000 * 60 * 60);
-  if (diffHours < 24 && d.getDate() === now.getDate()) {
-    const hh = String(d.getHours()).padStart(2, '0');
-    const mm = String(d.getMinutes()).padStart(2, '0');
-    return `${hh}:${mm}`;
+  const d   = new Date(iso);
+  const diffH = (now.getTime() - d.getTime()) / 3_600_000;
+  if (diffH < 24 && d.getDate() === now.getDate()) {
+    return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
   }
-  if (diffHours < 48) return 'אתמול';
-  const dd = String(d.getDate()).padStart(2, '0');
-  const mo = String(d.getMonth() + 1).padStart(2, '0');
-  return `${dd}/${mo}`;
+  if (diffH < 48) return 'אתמול';
+  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
 }
 
-function seededOnline(id: string): boolean {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    hash = (hash << 5) - hash + id.charCodeAt(i);
-    hash |= 0;
-  }
-  return (hash & 1) === 0;
+function isOnline(id: string): boolean {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) { h = (h << 5) - h + id.charCodeAt(i); h |= 0; }
+  return (h & 1) === 0;
 }
 
-function unreadCount(match: Match): number {
+function countUnread(match: Match): number {
   if (match.isRead) return 0;
   return match.messages.filter(m => m.senderId !== 'me').length || 1;
 }
 
-// ─── Main Screen ─────────────────────────────────────────────────────────────
+// ─── Swipe delete action ──────────────────────────────────────────────────────
 
-export const MessagesScreen: React.FC = () => {
-  const { state, markMatchRead } = useApp();
-  const navigation = useNavigation<any>();
+const SwipeDeleteAction = (_prog: Animated.AnimatedInterpolation<number>, drag: Animated.AnimatedInterpolation<number>) => {
+  const scale = drag.interpolate({ inputRange: [-80, 0], outputRange: [1, 0.5], extrapolate: 'clamp' });
+  return (
+    <View style={deleteAction.wrap}>
+      <Animated.View style={[deleteAction.btn, { transform: [{ scale }] }]}>
+        <Ionicons name="trash-outline" size={22} color={Colors.white} />
+        <WText style={deleteAction.text}>הסר</WText>
+      </Animated.View>
+    </View>
+  );
+};
 
-  const sortedMatches = [...state.matches].sort((a, b) => {
-    if (!a.isRead && b.isRead) return -1;
-    if (a.isRead && !b.isRead) return 1;
-    return new Date(b.matchedAt).getTime() - new Date(a.matchedAt).getTime();
-  });
+const deleteAction = StyleSheet.create({
+  wrap: { justifyContent: 'center', alignItems: 'flex-start', paddingLeft: 24, backgroundColor: Colors.error, width: 100 },
+  btn:  { alignItems: 'center', gap: 3 },
+  text: { fontFamily: FontFamily.bold, fontSize: FontSize.xs, color: Colors.white },
+});
 
-  const handlePressMatch = useCallback((match: Match) => {
-    markMatchRead(match.id);
-    navigation.navigate('Chat', { matchId: match.id });
-  }, [markMatchRead, navigation]);
+// ─── New Match bubble (horizontal scroll) ─────────────────────────────────────
 
-  const renderItem = useCallback(({ item, index }: { item: Match; index: number }) => {
-    const lastMessage = item.messages.length > 0
-      ? item.messages[item.messages.length - 1].text
-      : 'היי! בואו נדבר 🐾';
-    const unread = unreadCount(item);
-    const isOnline = seededOnline(item.id);
-    const isNew = !item.isRead;
+const NewMatchBubble: React.FC<{ match: Match; onPress: () => void }> = ({ match, onPress }) => (
+  <TouchableOpacity style={bubble.wrap} onPress={onPress} activeOpacity={0.8}>
+    <View style={bubble.ring}>
+      <Image source={{ uri: match.dog.photos?.[0] }} style={bubble.avatar} />
+      {isOnline(match.id) && <View style={bubble.onlineDot} />}
+    </View>
+    <WText style={bubble.name} numberOfLines={1}>{match.dog.name}</WText>
+    <WText style={bubble.sub}>לחץ לשלוח</WText>
+  </TouchableOpacity>
+);
 
-    return (
+const bubble = StyleSheet.create({
+  wrap:      { alignItems: 'center', width: 72 },
+  ring:      { width: 68, height: 68, borderRadius: 34, borderWidth: 2.5, borderColor: Colors.terra, position: 'relative' },
+  avatar:    { width: 63, height: 63, borderRadius: 31.5, margin: 2.5 - 0.5, backgroundColor: Colors.cream2 },
+  onlineDot: { position: 'absolute', bottom: 2, right: 2, width: 13, height: 13, borderRadius: 7, backgroundColor: Colors.success, borderWidth: 2, borderColor: Colors.white },
+  name:      { fontFamily: FontFamily.semibold, fontSize: FontSize.xs, color: Colors.text, marginTop: 5, textAlign: 'center' },
+  sub:       { fontFamily: FontFamily.regular, fontSize: 9, color: Colors.gray, textAlign: 'center' },
+});
+
+// ─── Conversation row ─────────────────────────────────────────────────────────
+
+interface RowProps {
+  match: Match;
+  onPress: () => void;
+  onUnmatch: () => void;
+}
+
+const ConvoRow = React.memo<RowProps>(({ match, onPress, onUnmatch }) => {
+  const swipeRef = useRef<Swipeable>(null);
+  const lastMsg  = match.messages.length > 0
+    ? match.messages[match.messages.length - 1].text
+    : 'שלח הודעה ראשונה';
+  const unread  = countUnread(match);
+  const online  = isOnline(match.id);
+  const isNew   = !match.isRead;
+
+  const handleUnmatch = () => {
+    swipeRef.current?.close();
+    Alert.alert(
+      'הסרת התאמה',
+      `להסיר את ${match.dog.name} מהרשימה?`,
+      [
+        { text: 'ביטול', style: 'cancel' },
+        { text: 'הסר', style: 'destructive', onPress: () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); onUnmatch(); } },
+      ]
+    );
+  };
+
+  return (
+    <Swipeable
+      ref={swipeRef}
+      renderLeftActions={SwipeDeleteAction}
+      leftThreshold={60}
+      onSwipeableOpen={handleUnmatch}
+      friction={2}
+      overshootLeft={false}
+    >
       <TouchableOpacity
         style={[styles.row, isNew && styles.rowUnread]}
-        onPress={() => handlePressMatch(item)}
+        onPress={onPress}
         activeOpacity={0.75}
       >
-        {/* Avatar */}
-        <WAvatar uri={item.dog.photos?.[0] ?? null} size={58} online={isOnline} />
+        <WAvatar uri={match.dog.photos?.[0] ?? null} size={56} online={online} />
 
-        {/* Content */}
         <View style={styles.rowContent}>
           <View style={styles.rowTop}>
-            <WText style={[styles.dogName, isNew && styles.dogNameUnread]}>
-              {item.dog.name}
+            <WText style={[styles.dogName, isNew && styles.dogNameBold]}>
+              {match.dog.name}
             </WText>
-            <WText style={styles.timestamp}>{formatMatchTime(item.matchedAt)}</WText>
+            <WText style={[styles.timestamp, isNew && styles.timestampBold]}>
+              {formatTime(match.matchedAt)}
+            </WText>
           </View>
+
           <View style={styles.rowBottom}>
-            <WText
-              style={[styles.lastMessage, isNew && styles.lastMessageUnread]}
-              numberOfLines={1}
-            >
-              {lastMessage}
+            <WText style={[styles.preview, isNew && styles.previewBold]} numberOfLines={1}>
+              {isNew && unread > 0 && '• '}{lastMsg}
             </WText>
             {unread > 0 && (
-              <View style={styles.unreadBadge}>
-                <WText style={styles.unreadText}>{unread}</WText>
+              <View style={styles.badge}>
+                <WText style={styles.badgeText}>{unread > 9 ? '9+' : unread}</WText>
               </View>
             )}
           </View>
         </View>
       </TouchableOpacity>
-    );
-  }, [handlePressMatch]);
-
-  const keyExtractor = useCallback((item: Match) => item.id, []);
-
-  const EmptyComponent = (
-    <View style={styles.emptyContainer}>
-      <WText style={styles.emptyEmoji}>💬</WText>
-      <WText variant="h3" color={Colors.forest} center style={{ marginTop: Spacing.base }}>
-        עוד אין matches
-      </WText>
-      <WText variant="body" color={Colors.gray} center style={{ marginTop: Spacing.sm }}>
-        גלה כלבים ותמצא שידוכים!
-      </WText>
-      <View style={{ marginTop: Spacing.xl, paddingHorizontal: Spacing.xl }}>
-        <WButton
-          label="גלה כלבים →"
-          onPress={() => navigation.navigate('Discover' as any)}
-          variant="primary"
-          size="md"
-        />
-      </View>
-    </View>
+    </Swipeable>
   );
+});
+
+// ─── Main screen ──────────────────────────────────────────────────────────────
+
+export const MessagesScreen: React.FC = () => {
+  const { state, markMatchRead, removeMatch } = useApp();
+  const navigation = useNavigation<any>();
+
+  const sorted = [...state.matches].sort((a, b) => {
+    if (!a.isRead && b.isRead) return -1;
+    if (a.isRead && !b.isRead) return 1;
+    return new Date(b.matchedAt).getTime() - new Date(a.matchedAt).getTime();
+  });
+
+  const newMatches = sorted.filter(m => m.messages.length === 0);
+  const convos     = sorted.filter(m => m.messages.length > 0 || m.isRead);
+  const allRows    = sorted; // show all in the list regardless
+
+  const openChat = useCallback((match: Match) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    markMatchRead(match.id);
+    navigation.navigate('Chat', { matchId: match.id });
+  }, [markMatchRead, navigation]);
+
+  const renderRow = useCallback(({ item }: { item: Match }) => (
+    <ConvoRow
+      match={item}
+      onPress={() => openChat(item)}
+      onUnmatch={() => removeMatch(item.id)}
+    />
+  ), [openChat, removeMatch]);
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
+
       {/* Header */}
       <View style={styles.header}>
         <WText style={styles.headerTitle}>הודעות</WText>
         {state.matches.length > 0 && (
-          <View style={styles.matchCountPill}>
-            <WText style={styles.matchCountText}>{state.matches.length} matches</WText>
+          <View style={styles.countPill}>
+            <WText style={styles.countText}>{state.matches.length} matches</WText>
           </View>
         )}
       </View>
 
-      {/* List */}
+      {/* New matches bubble row */}
+      {newMatches.length > 0 && (
+        <View style={styles.newMatchSection}>
+          <WText style={styles.sectionLabel}>התאמות חדשות</WText>
+          <FlatList
+            horizontal
+            data={newMatches}
+            keyExtractor={m => m.id}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.bubblesContent}
+            renderItem={({ item }) => (
+              <NewMatchBubble match={item} onPress={() => openChat(item)} />
+            )}
+          />
+        </View>
+      )}
+
+      {/* Conversation list */}
       <FlatList
-        data={sortedMatches}
-        keyExtractor={keyExtractor}
-        renderItem={renderItem}
-        ListEmptyComponent={EmptyComponent}
+        data={allRows}
+        keyExtractor={m => m.id}
+        renderItem={renderRow}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={sortedMatches.length === 0 ? styles.listEmpty : styles.listContent}
+        contentContainerStyle={allRows.length === 0 ? styles.listEmpty : styles.listContent}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
+        ListHeaderComponent={allRows.length > 0 ? (
+          <WText style={[styles.sectionLabel, { paddingHorizontal: Spacing.base, paddingTop: Spacing.base }]}>
+            שיחות
+          </WText>
+        ) : null}
+        ListEmptyComponent={(
+          <View style={styles.empty}>
+            <MaterialCommunityIcons name="paw" size={64} color={Colors.cream2} />
+            <WText style={styles.emptyTitle}>אין התאמות עדיין</WText>
+            <WText style={styles.emptySub}>גלה כלבים ותמצא חברים לטיול</WText>
+            <TouchableOpacity
+              style={styles.discoverBtn}
+              onPress={() => navigation.navigate('Discover' as any)}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="heart-outline" size={16} color={Colors.white} />
+              <WText style={styles.discoverBtnText}>גלה כלבים</WText>
+            </TouchableOpacity>
+          </View>
+        )}
       />
     </SafeAreaView>
   );
 };
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: Colors.cream,
-  },
+  root: { flex: 1, backgroundColor: Colors.background },
 
-  // Header
   header: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.base,
-    paddingBottom: Spacing.base,
+    paddingHorizontal: Spacing.base,
+    paddingVertical: Spacing.md,
     backgroundColor: Colors.white,
-    shadowColor: 'rgba(44,74,62,0.08)',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
-    elevation: 4,
+    borderBottomWidth: 0.5,
+    borderBottomColor: Colors.border,
+    ...Shadow.sm,
   },
   headerTitle: {
     fontFamily: FontFamily.displayBlack,
     fontSize: FontSize['2xl'],
-    color: Colors.forest,
-    textAlign: 'right',
+    color: Colors.text,
   },
-  matchCountPill: {
+  countPill: {
     backgroundColor: Colors.forestDim,
-    borderRadius: Radius.pill,
+    borderRadius: Radius.full,
     paddingHorizontal: Spacing.md,
     paddingVertical: 4,
   },
-  matchCountText: {
+  countText: {
     fontFamily: FontFamily.semibold,
     fontSize: FontSize.xs,
     color: Colors.forest,
   },
 
+  // New matches
+  newMatchSection: {
+    backgroundColor: Colors.white,
+    paddingTop: Spacing.base,
+    paddingBottom: Spacing.md,
+    borderBottomWidth: 0.5,
+    borderBottomColor: Colors.border,
+  },
+  sectionLabel: {
+    fontFamily: FontFamily.semibold,
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+    paddingHorizontal: Spacing.base,
+    marginBottom: Spacing.sm,
+    textAlign: 'right',
+  },
+  bubblesContent: {
+    paddingHorizontal: Spacing.base,
+    gap: Spacing.base,
+  },
+
   // List
-  listContent: {
-    paddingTop: Spacing.sm,
-  },
-  listEmpty: {
-    flexGrow: 1,
-  },
-  separator: {
-    height: 1,
-    backgroundColor: Colors.border,
-    marginHorizontal: Spacing.lg,
-    marginLeft: Spacing.lg + 58 + Spacing.md, // align to content start
-  },
+  listContent: { paddingBottom: Spacing['2xl'] },
+  listEmpty:   { flexGrow: 1 },
+  separator:   { height: 0.5, backgroundColor: Colors.border, marginRight: Spacing.base, marginLeft: 72 + Spacing.base + Spacing.md },
 
   // Row
   row: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    paddingVertical: Spacing.base,
-    paddingHorizontal: Spacing.lg,
-    backgroundColor: Colors.cream,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.base,
+    backgroundColor: Colors.white,
     gap: Spacing.md,
   },
-  rowUnread: {
-    backgroundColor: Colors.white,
-  },
-  rowContent: {
-    flex: 1,
-  },
+  rowUnread: { backgroundColor: Colors.terraDim },
+  rowContent: { flex: 1 },
   rowTop: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 3,
   },
   rowBottom: {
     flexDirection: 'row-reverse',
@@ -234,54 +332,51 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   dogName: {
-    fontFamily: FontFamily.semibold,
+    fontFamily: FontFamily.medium,
     fontSize: FontSize.base,
     color: Colors.text,
-    textAlign: 'right',
   },
-  dogNameUnread: {
-    fontFamily: FontFamily.bold,
-    color: Colors.forest,
-  },
+  dogNameBold: { fontFamily: FontFamily.bold },
   timestamp: {
     fontFamily: FontFamily.regular,
     fontSize: FontSize.xs,
-    color: Colors.gray,
+    color: Colors.textSecondary,
   },
-  lastMessage: {
+  timestampBold: { fontFamily: FontFamily.semibold, color: Colors.terra },
+  preview: {
     fontFamily: FontFamily.regular,
     fontSize: FontSize.sm,
-    color: Colors.gray,
+    color: Colors.textSecondary,
     flex: 1,
     textAlign: 'right',
-    marginLeft: Spacing.sm,
   },
-  lastMessageUnread: {
-    fontFamily: FontFamily.medium,
-    color: Colors.text,
-  },
-
-  // Unread badge
-  unreadBadge: {
-    width: 20,
+  previewBold: { fontFamily: FontFamily.medium, color: Colors.text },
+  badge: {
+    minWidth: 20,
     height: 20,
     borderRadius: 10,
     backgroundColor: Colors.terra,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 5,
     marginLeft: Spacing.xs,
   },
-  unreadText: {
-    fontFamily: FontFamily.bold,
-    fontSize: 11,
-    color: Colors.white,
-  },
+  badgeText: { fontFamily: FontFamily.bold, fontSize: 10, color: Colors.white },
 
   // Empty state
-  emptyContainer: {
+  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: Spacing['3xl'], gap: Spacing.md },
+  emptyTitle: { fontFamily: FontFamily.displayBlack, fontSize: FontSize['2xl'], color: Colors.forest },
+  emptySub: { fontFamily: FontFamily.regular, fontSize: FontSize.base, color: Colors.textSecondary, textAlign: 'center', paddingHorizontal: Spacing['2xl'] },
+  discoverBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: Spacing['3xl'],
+    gap: Spacing.sm,
+    marginTop: Spacing.sm,
+    backgroundColor: Colors.terra,
+    borderRadius: Radius.full,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    ...Shadow.md,
   },
-  emptyEmoji: { fontSize: 72 },
+  discoverBtnText: { fontFamily: FontFamily.bold, fontSize: FontSize.base, color: Colors.white },
 });

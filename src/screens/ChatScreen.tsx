@@ -8,279 +8,293 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
-  StatusBar,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
+
 import { useApp } from '@/context/AppContext';
 import { Colors, FontFamily, FontSize, Spacing, Radius, Shadow } from '@/theme';
 import { WText, WAvatar } from '@/components/ui';
 import { generateId } from '@/services/storage';
-import { Message } from '@/types';
-import { MessagesStackParamList } from '@/types';
+import { Message, MessagesStackParamList } from '@/types';
 
-// ─── Preset dog replies ───────────────────────────────────────────────────────
+// ─── Mock auto-replies ────────────────────────────────────────────────────────
 
-const DOG_REPLIES: string[] = [
-  'וואו, נשמע מגניב! 🐾 מתי אפשר להיפגש?',
-  'היי!! שמחתי לשמוע 🐕 אנחנו בטח נהנה להיפגש',
-  'כן כן כן! 🎾 הכלב שלי יתפוצץ מאושר',
+const AUTO_REPLIES = [
+  'נשמע מגניב! מתי אפשר להיפגש?',
+  'שמחתי לשמוע! אנחנו בטח נהנה להיפגש',
+  'כן! הכלב שלי יהיה מאושר',
   'סופר! איפה אתה רגיל לטייל?',
-  'מה שמך? אני מחכה בסבלנות! 🤝',
-  'אהבתי! בוא נתאם משהו לסוף שבוע?',
-  'מדהים 🌟 הכלב שלי חיכה לזה',
-  'יאללה! נעשה זאת! 🏃',
+  'בוא נתאם משהו לסוף שבוע?',
+  'מדהים! הכלב שלי חיכה לזה',
+  'יאללה, נעשה זאת!',
+  'בכיף! ספר לי יותר על הכלב שלך',
 ];
 
-function randomReply(): string {
-  return DOG_REPLIES[Math.floor(Math.random() * DOG_REPLIES.length)];
+function autoReply(): string {
+  return AUTO_REPLIES[Math.floor(Math.random() * AUTO_REPLIES.length)];
 }
 
-// ─── Time formatting ──────────────────────────────────────────────────────────
-
-function formatMsgTime(iso: string): string {
+function fmtTime(iso: string): string {
   const d = new Date(iso);
-  const hh = String(d.getHours()).padStart(2, '0');
-  const mm = String(d.getMinutes()).padStart(2, '0');
-  return `${hh}:${mm}`;
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 }
 
-// Check if two timestamps are > 5 min apart
-function showTimeSeparator(a: string, b: string): boolean {
-  const diff = Math.abs(new Date(b).getTime() - new Date(a).getTime());
-  return diff > 5 * 60 * 1000;
+function needsSeparator(a: string, b: string): boolean {
+  return Math.abs(new Date(b).getTime() - new Date(a).getTime()) > 5 * 60_000;
 }
 
-function formatSeparatorTime(iso: string): string {
-  const d = new Date(iso);
+function fmtSeparator(iso: string): string {
+  const d   = new Date(iso);
   const now = new Date();
-  const isToday = d.toDateString() === now.toDateString();
-  const hh = String(d.getHours()).padStart(2, '0');
-  const mm = String(d.getMinutes()).padStart(2, '0');
-  if (isToday) return `היום ${hh}:${mm}`;
-  const dd = String(d.getDate()).padStart(2, '0');
-  const mo = String(d.getMonth() + 1).padStart(2, '0');
-  return `${dd}/${mo} ${hh}:${mm}`;
+  const t   = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  if (d.toDateString() === now.toDateString()) return `היום ${t}`;
+  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')} ${t}`;
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type ChatRouteProp = RouteProp<MessagesStackParamList, 'Chat'>;
+type ChatRoute = RouteProp<MessagesStackParamList, 'Chat'>;
 
-// FlatList item can be a message or a time separator
 type ListItem =
-  | { kind: 'msg'; msg: Message }
-  | { kind: 'separator'; timestamp: string };
+  | { kind: 'msg';       msg: Message }
+  | { kind: 'separator'; timestamp: string }
+  | { kind: 'typing' };
 
-// ─── Main Screen ─────────────────────────────────────────────────────────────
+// ─── Typing indicator ─────────────────────────────────────────────────────────
+
+const TypingIndicator: React.FC = () => {
+  const dots = [
+    useRef(new Animated.Value(0)).current,
+    useRef(new Animated.Value(0)).current,
+    useRef(new Animated.Value(0)).current,
+  ];
+
+  useEffect(() => {
+    const anims = dots.map((d, i) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(i * 160),
+          Animated.spring(d, { toValue: -6, useNativeDriver: true, speed: 30, bounciness: 8 }),
+          Animated.spring(d, { toValue:  0, useNativeDriver: true, speed: 20, bounciness: 4 }),
+          Animated.delay(320),
+        ])
+      )
+    );
+    anims.forEach(a => a.start());
+    return () => anims.forEach(a => a.stop());
+  }, []);
+
+  return (
+    <View style={typing.wrap}>
+      <View style={typing.bubble}>
+        {dots.map((d, i) => (
+          <Animated.View key={i} style={[typing.dot, { transform: [{ translateY: d }] }]} />
+        ))}
+      </View>
+    </View>
+  );
+};
+
+const typing = StyleSheet.create({
+  wrap:   { paddingLeft: Spacing.base, paddingVertical: Spacing.xs },
+  bubble: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.cream2, borderRadius: 18, borderBottomLeftRadius: 4, paddingHorizontal: 14, paddingVertical: 10, gap: 5, alignSelf: 'flex-start' },
+  dot:    { width: 7, height: 7, borderRadius: 3.5, backgroundColor: Colors.placeholder },
+});
+
+// ─── Read receipt ─────────────────────────────────────────────────────────────
+
+const ReadReceipt: React.FC<{ sent?: boolean }> = ({ sent }) => (
+  <Ionicons
+    name={sent ? 'checkmark-done' : 'checkmark'}
+    size={13}
+    color={sent ? Colors.success : 'rgba(255,255,255,0.50)'}
+    style={{ marginTop: 2, marginLeft: 4 }}
+  />
+);
+
+// ─── Main screen ──────────────────────────────────────────────────────────────
 
 export const ChatScreen: React.FC = () => {
-  const navigation = useNavigation<any>();
-  const route = useRoute<ChatRouteProp>();
-  const { matchId } = route.params;
+  const navigation   = useNavigation<any>();
+  const route        = useRoute<ChatRoute>();
+  const { matchId }  = route.params;
 
-  const { state, addMessage, markMatchRead } = useApp();
+  const { state, addMessage, markMatchRead, removeMatch } = useApp();
   const match = state.matches.find(m => m.id === matchId);
 
   const [inputText, setInputText] = useState('');
-  const flatListRef = useRef<FlatList>(null);
+  const [isTyping,  setIsTyping]  = useState(false);
+  const flatRef = useRef<FlatList>(null);
 
-  // Mark as read on mount
   useEffect(() => {
     if (match) markMatchRead(matchId);
   }, [matchId]);
 
-  // ── Build list items from messages ──────────────────────────────────────────
-  const buildListItems = useCallback((messages: Message[]): ListItem[] => {
+  // Build flat list items
+  const buildItems = useCallback((msgs: Message[]): ListItem[] => {
     const items: ListItem[] = [];
-    for (let i = 0; i < messages.length; i++) {
-      const msg = messages[i];
-      const prev = messages[i - 1];
-      if (i === 0 || showTimeSeparator(prev.timestamp, msg.timestamp)) {
-        items.push({ kind: 'separator', timestamp: msg.timestamp });
+    for (let i = 0; i < msgs.length; i++) {
+      const prev = msgs[i - 1];
+      if (i === 0 || needsSeparator(prev.timestamp, msgs[i].timestamp)) {
+        items.push({ kind: 'separator', timestamp: msgs[i].timestamp });
       }
-      items.push({ kind: 'msg', msg });
+      items.push({ kind: 'msg', msg: msgs[i] });
     }
+    if (isTyping) items.push({ kind: 'typing' });
     return items;
-  }, []);
+  }, [isTyping]);
 
-  const messages = match ? match.messages : [];
-  // inverted=true so we reverse for display
-  const listItems = buildListItems([...messages]).reverse();
+  const msgs      = match?.messages ?? [];
+  const listItems = buildItems([...msgs]).reverse();
 
-  // ── Send message ────────────────────────────────────────────────────────────
-  const handleSend = useCallback(async () => {
+  // Send message
+  const handleSend = useCallback(() => {
     const text = inputText.trim();
     if (!text || !match) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-    const newMsg: Message = {
-      id:        generateId('msg'),
-      senderId:  'me',
-      text,
-      timestamp: new Date().toISOString(),
-    };
-
-    addMessage(matchId, newMsg);
+    addMessage(matchId, { id: generateId('msg'), senderId: 'me', text, timestamp: new Date().toISOString() });
     setInputText('');
 
-    // Simulate reply after 1.5s
+    // Show typing indicator after 400ms
+    setTimeout(() => setIsTyping(true), 400);
+
+    // Send auto-reply after 1.5s
     setTimeout(() => {
-      const replyMsg: Message = {
-        id:        generateId('msg'),
-        senderId:  match.dog.id,
-        text:      randomReply(),
-        timestamp: new Date().toISOString(),
-      };
-      addMessage(matchId, replyMsg);
-    }, 1500);
+      setIsTyping(false);
+      addMessage(matchId, { id: generateId('msg'), senderId: match.dog.id, text: autoReply(), timestamp: new Date().toISOString() });
+    }, 1600);
   }, [inputText, match, matchId, addMessage]);
 
-  // ── Header more options ──────────────────────────────────────────────────────
-  const handleMore = () => {
+  // More options
+  const handleMore = useCallback(() => {
     Alert.alert('אפשרויות', undefined, [
-      { text: 'דווח', style: 'destructive', onPress: () => Alert.alert('תודה', 'הדיווח נשלח') },
-      { text: 'הסר התאמה', style: 'destructive', onPress: () => { navigation.goBack(); } },
+      {
+        text: 'דווח על משתמש',
+        style: 'destructive',
+        onPress: () => Alert.alert('תודה', 'הדיווח נשלח לצוות Woofy'),
+      },
+      {
+        text: 'חסום משתמש',
+        style: 'destructive',
+        onPress: () => Alert.alert('חסימה', `${match?.dog.name} נחסם`, [{ text: 'אישור', onPress: () => { removeMatch(matchId); navigation.goBack(); } }]),
+      },
+      {
+        text: 'הסר התאמה',
+        style: 'destructive',
+        onPress: () => Alert.alert('הסרת התאמה', `להסיר את ${match?.dog.name}?`, [
+          { text: 'ביטול', style: 'cancel' },
+          { text: 'הסר', style: 'destructive', onPress: () => { removeMatch(matchId); navigation.goBack(); } },
+        ]),
+      },
       { text: 'ביטול', style: 'cancel' },
     ]);
-  };
+  }, [match, matchId, removeMatch, navigation]);
 
-  // ── Render item ──────────────────────────────────────────────────────────────
+  // Render item
   const renderItem = useCallback(({ item }: { item: ListItem }) => {
-    if (item.kind === 'separator') {
-      return (
-        <View style={styles.separatorRow}>
-          <WText variant="captionMedium" color={Colors.gray} center>
-            {formatSeparatorTime(item.timestamp)}
-          </WText>
-        </View>
-      );
-    }
+    if (item.kind === 'typing')    return <TypingIndicator />;
+    if (item.kind === 'separator') return (
+      <View style={styles.sep}>
+        <WText style={styles.sepText}>{fmtSeparator(item.timestamp)}</WText>
+      </View>
+    );
 
     const isMe = item.msg.senderId === 'me';
-
     return (
-      <View
-        style={[
-          styles.bubbleWrapper,
-          isMe ? styles.bubbleWrapperMe : styles.bubbleWrapperThem,
-        ]}
-      >
-        <View
-          style={[
-            styles.bubble,
-            isMe ? styles.bubbleMe : styles.bubbleThem,
-          ]}
-        >
-          <WText
-            style={[
-              styles.bubbleText,
-              isMe ? styles.bubbleTextMe : styles.bubbleTextThem,
-            ]}
-          >
+      <View style={[styles.bubbleWrap, isMe ? styles.bubbleWrapMe : styles.bubbleWrapThem]}>
+        <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleThem]}>
+          <WText style={[styles.bubbleText, isMe ? styles.bubbleTextMe : styles.bubbleTextThem]}>
             {item.msg.text}
           </WText>
         </View>
-        <WText variant="caption" color={Colors.gray} style={styles.msgTime}>
-          {formatMsgTime(item.msg.timestamp)}
-        </WText>
+        <View style={styles.metaRow}>
+          <WText style={styles.msgTime}>{fmtTime(item.msg.timestamp)}</WText>
+          {isMe && <ReadReceipt sent />}
+        </View>
       </View>
     );
   }, []);
 
-  const keyExtractor = useCallback((item: ListItem, index: number) => {
-    if (item.kind === 'separator') return `sep_${item.timestamp}_${index}`;
+  const keyExtractor = useCallback((item: ListItem, idx: number): string => {
+    if (item.kind === 'typing')    return `typing_${idx}`;
+    if (item.kind === 'separator') return `sep_${item.timestamp}_${idx}`;
     return item.msg.id;
   }, []);
 
-  // ── Not found ────────────────────────────────────────────────────────────────
   if (!match) {
     return (
       <SafeAreaView style={styles.root}>
-        <View style={styles.notFoundContainer}>
-          <WText variant="h3" color={Colors.forest} center>שיחה לא נמצאה</WText>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: Spacing.base }}>
-            <WText variant="bodySemibold" color={Colors.terra} center>חזור</WText>
+        <View style={styles.notFound}>
+          <WText style={styles.notFoundText}>שיחה לא נמצאה</WText>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <WText style={styles.goBack}>חזור</WText>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
   }
 
-  const isOnline = match.messages.length > 0;
+  const online = match.messages.length > 0;
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <StatusBar barStyle="dark-content" />
 
-      {/* ═══ HEADER ═══ */}
+      {/* Header */}
       <View style={styles.header}>
-        {/* Back button */}
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-        >
+        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
           <Ionicons name="chevron-back" size={28} color={Colors.forest} />
         </TouchableOpacity>
 
-        {/* Avatar */}
-        <WAvatar
-          uri={match.dog.photos?.[0] ?? null}
-          size={40}
-          online={isOnline}
-        />
+        <WAvatar uri={match.dog.photos?.[0] ?? null} size={40} online={online} />
 
-        {/* Dog info */}
         <View style={styles.headerInfo}>
-          <WText variant="title" color={Colors.forest} right>
-            {match.dog.name}
-          </WText>
-          <WText variant="caption" color={isOnline ? Colors.success : Colors.gray} right>
-            {isOnline ? 'מחובר עכשיו' : 'לא מחובר'}
-          </WText>
+          <WText style={styles.headerName}>{match.dog.name}</WText>
+          <View style={styles.headerStatus}>
+            {online && <View style={styles.onlineDot} />}
+            <WText style={[styles.headerStatusText, { color: online ? Colors.success : Colors.textSecondary }]}>
+              {isTyping ? 'מקליד...' : online ? 'מחובר עכשיו' : 'לא מחובר'}
+            </WText>
+          </View>
         </View>
 
-        {/* More options */}
-        <TouchableOpacity
-          onPress={handleMore}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-        >
+        <TouchableOpacity onPress={handleMore} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
           <Ionicons name="ellipsis-horizontal" size={22} color={Colors.forest} />
         </TouchableOpacity>
       </View>
 
-      {/* ═══ MESSAGES ═══ */}
+      {/* Messages */}
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         <FlatList
-          ref={flatListRef}
+          ref={flatRef}
           data={listItems}
           keyExtractor={keyExtractor}
           renderItem={renderItem}
           inverted
-          contentContainerStyle={styles.messagesContent}
+          contentContainerStyle={styles.msgContent}
           showsVerticalScrollIndicator={false}
-          ItemSeparatorComponent={() => <View style={{ height: Spacing.sm }} />}
-          ListEmptyComponent={
-            <View style={styles.emptyMessages}>
-              <WText variant="body" color={Colors.gray} center style={styles.emptyText}>
-                👋 שלח הודעה ראשונה!
-              </WText>
+          ItemSeparatorComponent={() => <View style={{ height: Spacing.xs }} />}
+          ListEmptyComponent={(
+            <View style={styles.emptyChat}>
+              <WAvatar uri={match.dog.photos?.[0] ?? null} size={72} />
+              <WText style={styles.emptyChatName}>{match.dog.name}</WText>
+              <WText style={styles.emptyChatSub}>שלח הודעה ראשונה</WText>
             </View>
-          }
+          )}
         />
 
-        {/* ═══ INPUT BAR ═══ */}
+        {/* Input bar */}
         <View style={styles.inputBar}>
           <TextInput
-            style={styles.textInput}
+            style={styles.input}
             value={inputText}
             onChangeText={setInputText}
             placeholder="כתוב הודעה..."
@@ -292,10 +306,10 @@ export const ChatScreen: React.FC = () => {
             blurOnSubmit={false}
           />
           <TouchableOpacity
-            style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]}
+            style={[styles.sendBtn, !inputText.trim() && styles.sendBtnDisabled]}
             onPress={handleSend}
             disabled={!inputText.trim()}
-            activeOpacity={0.75}
+            activeOpacity={0.8}
           >
             <Ionicons name="send" size={18} color={Colors.white} style={{ transform: [{ scaleX: -1 }] }} />
           </TouchableOpacity>
@@ -305,21 +319,16 @@ export const ChatScreen: React.FC = () => {
   );
 };
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: Colors.cream,
-  },
-  flex: {
-    flex: 1,
-  },
-  notFoundContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  root: { flex: 1, backgroundColor: Colors.background },
+  flex: { flex: 1 },
+
+  // Not found
+  notFound: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.md },
+  notFoundText: { fontFamily: FontFamily.bold, fontSize: FontSize.lg, color: Colors.forest },
+  goBack: { fontFamily: FontFamily.semibold, fontSize: FontSize.base, color: Colors.terra },
 
   // Header
   header: {
@@ -328,85 +337,42 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.base,
     paddingVertical: Spacing.sm,
     backgroundColor: Colors.white,
-    borderBottomWidth: 1,
+    borderBottomWidth: 0.5,
     borderBottomColor: Colors.border,
     gap: Spacing.sm,
+    ...Shadow.sm,
   },
-  backButton: {
-    paddingHorizontal: Spacing.xs,
-  },
-  headerInfo: {
-    flex: 1,
-    alignItems: 'flex-end',
-  },
+  headerInfo: { flex: 1, alignItems: 'flex-end' },
+  headerName: { fontFamily: FontFamily.bold, fontSize: FontSize.base, color: Colors.text },
+  headerStatus: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  onlineDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: Colors.success },
+  headerStatusText: { fontFamily: FontFamily.regular, fontSize: FontSize.xs },
+
   // Messages
-  messagesContent: {
-    paddingHorizontal: Spacing.base,
-    paddingVertical: Spacing.sm,
-    flexGrow: 1,
-    justifyContent: 'flex-end',
-  },
+  msgContent: { paddingHorizontal: Spacing.base, paddingVertical: Spacing.sm, flexGrow: 1, justifyContent: 'flex-end' },
 
-  // Bubble wrapper
-  bubbleWrapper: {
-    maxWidth: '75%',
-  },
-  bubbleWrapperMe: {
-    alignSelf: 'flex-end',
-    alignItems: 'flex-end',
-  },
-  bubbleWrapperThem: {
-    alignSelf: 'flex-start',
-    alignItems: 'flex-start',
-  },
-  bubble: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  bubbleMe: {
-    backgroundColor: Colors.terra,
-    borderRadius: 16,
-    borderBottomRightRadius: 0,
-  },
-  bubbleThem: {
-    backgroundColor: Colors.cream2,
-    borderRadius: 16,
-    borderBottomLeftRadius: 0,
-  },
-  bubbleText: {
-    fontFamily: FontFamily.regular,
-    fontSize: FontSize.base,
-    lineHeight: FontSize.base * 1.5,
-  },
-  bubbleTextMe: {
-    color: Colors.white,
-    textAlign: 'right',
-  },
-  bubbleTextThem: {
-    color: Colors.text,
-    textAlign: 'right',
-  },
-  msgTime: {
-    marginTop: 2,
-    marginHorizontal: 4,
-  },
+  bubbleWrap: { maxWidth: '78%' },
+  bubbleWrapMe:   { alignSelf: 'flex-end',   alignItems: 'flex-end'   },
+  bubbleWrapThem: { alignSelf: 'flex-start', alignItems: 'flex-start' },
 
-  // Time separator
-  separatorRow: {
-    alignItems: 'center',
-    marginVertical: Spacing.sm,
-  },
+  bubble: { paddingHorizontal: 14, paddingVertical: 10 },
+  bubbleMe:   { backgroundColor: Colors.terra,  borderRadius: 18, borderBottomRightRadius: 4 },
+  bubbleThem: { backgroundColor: Colors.cream2, borderRadius: 18, borderBottomLeftRadius: 4  },
 
-  // Empty messages
-  emptyMessages: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing['3xl'],
-  },
-  emptyText: {
-    fontStyle: 'italic',
-  },
+  bubbleText:     { fontFamily: FontFamily.regular, fontSize: FontSize.base, lineHeight: FontSize.base * 1.5 },
+  bubbleTextMe:   { color: Colors.white, textAlign: 'right' },
+  bubbleTextThem: { color: Colors.text,  textAlign: 'right' },
+
+  metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 3, paddingHorizontal: 4 },
+  msgTime: { fontFamily: FontFamily.regular, fontSize: FontSize.xs, color: Colors.textSecondary },
+
+  sep: { alignItems: 'center', marginVertical: Spacing.sm },
+  sepText: { fontFamily: FontFamily.regular, fontSize: FontSize.xs, color: Colors.textSecondary, backgroundColor: Colors.background, paddingHorizontal: 10, paddingVertical: 3, borderRadius: Radius.full },
+
+  // Empty chat
+  emptyChat: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing['3xl'], gap: Spacing.md },
+  emptyChatName: { fontFamily: FontFamily.bold, fontSize: FontSize.lg, color: Colors.text },
+  emptyChatSub: { fontFamily: FontFamily.regular, fontSize: FontSize.sm, color: Colors.textSecondary },
 
   // Input bar
   inputBar: {
@@ -415,15 +381,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.base,
     paddingVertical: Spacing.md,
     backgroundColor: Colors.white,
-    borderTopWidth: 1,
+    borderTopWidth: 0.5,
     borderTopColor: Colors.border,
     gap: Spacing.sm,
-    ...Shadow.soft,
+    ...Shadow.sm,
   },
-  textInput: {
+  input: {
     flex: 1,
     backgroundColor: Colors.cream2,
-    borderRadius: Radius.pill,
+    borderRadius: Radius.full,
     paddingHorizontal: Spacing.base,
     paddingVertical: Spacing.sm + 2,
     fontFamily: FontFamily.regular,
@@ -432,15 +398,11 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     maxHeight: 120,
   },
-  sendButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  sendBtn: {
+    width: 44, height: 44, borderRadius: 22,
     backgroundColor: Colors.terra,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
+    ...Shadow.sm,
   },
-  sendButtonDisabled: {
-    opacity: 0.4,
-  },
+  sendBtnDisabled: { opacity: 0.35 },
 });

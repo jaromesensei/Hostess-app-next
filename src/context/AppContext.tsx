@@ -170,6 +170,9 @@ function reducer(state: AppState, action: Action): AppState {
     case 'ADD_MATCH':
       return { ...state, matches: [action.payload, ...state.matches] };
 
+    case 'REMOVE_MATCH':
+      return { ...state, matches: state.matches.filter(m => m.id !== action.payload) };
+
     case 'ADD_MESSAGE':
       return {
         ...state,
@@ -239,6 +242,7 @@ interface AppContextValue {
   deleteReminder: (id: string) => void;
   toggleReminder: (id: string) => void;
   addMatch: (dog: Dog) => Match;
+  removeMatch: (matchId: string) => void;
   addMessage: (matchId: string, message: Message) => void;
   markMatchRead: (matchId: string) => void;
   likeDog: (id: string) => void;
@@ -350,6 +354,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return match;
   }, []);
 
+  const removeMatch = useCallback((matchId: string) =>
+    dispatch({ type: 'REMOVE_MATCH', payload: matchId }), []);
+
   const addMessage = useCallback((matchId: string, message: Message) =>
     dispatch({ type: 'ADD_MESSAGE', payload: { matchId, message } }), []);
 
@@ -396,6 +403,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteReminder,
         toggleReminder,
         addMatch,
+        removeMatch,
         addMessage,
         markMatchRead,
         likeDog,
