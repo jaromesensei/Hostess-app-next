@@ -30,6 +30,7 @@ import { generateId } from '@/services/storage';
 import { notificationService } from '@/services/notifications';
 import { HealthRecord, Reminder } from '@/types';
 import { WoofyProModal } from '@/screens/WoofyProModal';
+import { AIDailyTip } from '@/components/AIDailyTip';
 
 // ─── Health Record Types ────────────────────────────────────────────────────
 
@@ -434,6 +435,9 @@ export const MyDogScreen: React.FC = () => {
             />
           ))}
         </ScrollView>
+
+        {/* ═══ AI DAILY TIP ═══ */}
+        <AIDailyTip dog={dog} />
 
         {/* ═══ WOOFY PRO BANNER ═══ */}
         <TouchableOpacity

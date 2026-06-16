@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import {
   View,
   FlatList,
@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 
@@ -113,20 +114,31 @@ const EventCard = React.memo<EventCardProps>(({ event, onPress, onJoin }) => {
         </View>
 
         <View style={styles.eventCardFooter}>
-          <WText style={styles.eventCardAttendees}>{event.attendees} 👥</WText>
+          <View style={styles.eventAttendeesRow}>
+            <Ionicons name="people-outline" size={13} color={Colors.gray} />
+            <WText style={styles.eventCardAttendees}>{event.attendees}</WText>
+          </View>
           <TouchableOpacity
             style={[styles.eventJoinBtn, event.isAttending && styles.eventJoinBtnActive]}
             onPress={(e) => { (e as any).stopPropagation?.(); onJoin(); }}
             activeOpacity={0.75}
           >
+            {event.isAttending ? (
+              <Ionicons name="checkmark" size={13} color={Colors.forest} />
+            ) : (
+              <Ionicons name="add" size={13} color={Colors.white} />
+            )}
             <WText style={[styles.eventJoinText, event.isAttending && styles.eventJoinTextActive]}>
-              {event.isAttending ? 'נרשמת ✓' : '+ הצטרף'}
+              {event.isAttending ? 'נרשמת' : 'הצטרף'}
             </WText>
           </TouchableOpacity>
         </View>
 
         {almostFull && (
-          <WText style={styles.almostFullText}>🔥 נשארו {spotsLeft} מקומות</WText>
+          <View style={styles.almostFullRow}>
+            <Ionicons name="flame" size={13} color={Colors.terra} />
+            <WText style={styles.almostFullText}>נשארו {spotsLeft} מקומות</WText>
+          </View>
         )}
       </View>
     </TouchableOpacity>
@@ -147,8 +159,36 @@ const PostCard = React.memo<PostCardProps>(({ post, likeAnim, onLike, onCommentP
   const [captionExpanded, setCaptionExpanded] = useState(false);
   const shortened = post.caption.length > 88;
 
+  // Card entrance animation
+  const mountAnim = useRef(new Animated.Value(0)).current;
+  const mountTY   = useRef(new Animated.Value(10)).current;
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(mountAnim, { toValue: 1, duration: 320, useNativeDriver: true }),
+      Animated.spring(mountTY,   { toValue: 0, damping: 18, stiffness: 120, useNativeDriver: true }),
+    ]).start();
+  }, []);
+
+  // Double-tap to like
+  const lastTap = useRef<number>(0);
+  const heartBurst = useRef(new Animated.Value(0)).current;
+
+  const handleImagePress = useCallback(() => {
+    const now = Date.now();
+    if (now - lastTap.current < 320) {
+      onLike(post.id);
+      heartBurst.setValue(0);
+      Animated.sequence([
+        Animated.spring(heartBurst, { toValue: 1, useNativeDriver: true, speed: 20, bounciness: 14 }),
+        Animated.delay(500),
+        Animated.timing(heartBurst, { toValue: 0, duration: 200, useNativeDriver: true }),
+      ]).start();
+    }
+    lastTap.current = now;
+  }, [post.id, onLike, heartBurst]);
+
   return (
-    <View style={styles.postCard}>
+    <Animated.View style={[styles.postCard, { opacity: mountAnim, transform: [{ translateY: mountTY }] }]}>
       {/* Header */}
       <View style={styles.postHeader}>
         <TouchableOpacity style={styles.postHeaderLeft} activeOpacity={0.8} onPress={() => onAvatarPress(post)}>
@@ -163,8 +203,19 @@ const PostCard = React.memo<PostCardProps>(({ post, likeAnim, onLike, onCommentP
         </TouchableOpacity>
       </View>
 
-      {/* Photo */}
-      <Image source={{ uri: post.photo }} style={styles.postImage} resizeMode="cover" />
+      {/* Photo — double-tap to like */}
+      <TouchableOpacity onPress={handleImagePress} activeOpacity={1} style={{ position: 'relative' }}>
+        <Image source={{ uri: post.photo }} style={styles.postImage} resizeMode="cover" />
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.heartBurst, {
+            opacity: heartBurst,
+            transform: [{ scale: heartBurst.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) }],
+          }]}
+        >
+          <Ionicons name="heart" size={80} color="rgba(255,255,255,0.90)" />
+        </Animated.View>
+      </TouchableOpacity>
 
       {/* Actions */}
       <View style={styles.actionsRow}>
@@ -222,7 +273,7 @@ const PostCard = React.memo<PostCardProps>(({ post, likeAnim, onLike, onCommentP
         </TouchableOpacity>
       )}
       <View style={styles.postBottom} />
-    </View>
+    </Animated.View>
   );
 });
 
@@ -683,7 +734,10 @@ export const FeedScreen: React.FC = () => {
         <TouchableOpacity onPress={() => setShowCreate(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Ionicons name="camera-outline" size={26} color={Colors.text} />
         </TouchableOpacity>
-        <WText style={styles.appLogo}>Woofy 🐾</WText>
+        <View style={styles.appLogoRow}>
+          <MaterialCommunityIcons name="paw" size={18} color={Colors.terra} />
+          <WText style={styles.appLogo}>Woofy</WText>
+        </View>
         <TouchableOpacity
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           onPress={() => setShowNotifications(true)}
@@ -745,6 +799,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0.5,
     borderBottomColor: Colors.border,
   },
+  appLogoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   appLogo: {
     fontFamily: FontFamily.displayBlack,
     fontSize: FontSize.xl,
@@ -780,13 +839,13 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
   },
   storiesContent: { paddingHorizontal: Spacing.base, gap: Spacing.base },
-  storyItem: { alignItems: 'center', width: 72 },
+  storyItem: { alignItems: 'center', width: 80 },
   storyRing: {
-    width: 68, height: 68, borderRadius: 34,
+    width: 76, height: 76, borderRadius: 38,
     alignItems: 'center', justifyContent: 'center',
     marginBottom: Spacing.xs,
   },
-  storyAvatar: { width: 60, height: 60, borderRadius: 30, backgroundColor: Colors.cream2 },
+  storyAvatar: { width: 68, height: 68, borderRadius: 34, backgroundColor: Colors.cream2 },
   storyAddBadge: {
     position: 'absolute', bottom: 0, right: 0,
     width: 20, height: 20, borderRadius: 10,
@@ -880,24 +939,42 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  eventAttendeesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
   eventCardAttendees: {
     fontFamily: FontFamily.regular,
     fontSize: FontSize.xs,
     color: Colors.gray,
   },
   eventJoinBtn: {
-    backgroundColor: Colors.cream2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: Colors.terra,
     borderRadius: Radius.pill,
     paddingHorizontal: Spacing.sm,
     paddingVertical: 5,
   },
-  eventJoinBtnActive: { backgroundColor: Colors.terra },
+  eventJoinBtnActive: {
+    backgroundColor: Colors.cream2,
+    borderWidth: 1,
+    borderColor: Colors.forest,
+  },
   eventJoinText: {
     fontFamily: FontFamily.bold,
     fontSize: FontSize.xs,
-    color: Colors.gray,
+    color: Colors.white,
   },
-  eventJoinTextActive: { color: Colors.white },
+  eventJoinTextActive: { color: Colors.forest },
+  almostFullRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
   almostFullText: {
     fontFamily: FontFamily.semibold,
     fontSize: FontSize.xs,
@@ -909,6 +986,12 @@ const styles = StyleSheet.create({
   // Post card
   feedContent: { paddingBottom: Spacing['2xl'] },
   postCard: { backgroundColor: Colors.white, marginBottom: Spacing.xs, borderBottomWidth: 0.5, borderBottomColor: Colors.border },
+  heartBurst: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   postHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.md, paddingVertical: Spacing.md },
   postHeaderLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   postAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.cream2, marginRight: Spacing.md },
