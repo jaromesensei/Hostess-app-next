@@ -7,11 +7,12 @@ import {
   Modal,
   Dimensions,
   StyleSheet,
-  Platform,
+  Animated,
   Alert,
   PanResponder,
-  Animated,
 } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -22,21 +23,20 @@ import { Dog } from '@/types';
 import { Colors, FontFamily, FontSize, Radius, Shadow, Spacing } from '@/theme';
 import { WText, WButton } from '@/components/ui';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const CARD_HEIGHT = SCREEN_HEIGHT * 0.68;
-const SWIPE_THRESHOLD = 100;
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
+const CARD_HEIGHT = SCREEN_H * 0.68;
+const SWIPE_THRESHOLD = 90;
 const SWIPE_UP_THRESHOLD = -100;
 
-type FilterType = 'all' | 'friends' | 'breeding' | 'walks';
+type FilterType = 'all' | 'walks' | 'friends';
 
-const FILTER_LABELS: Record<FilterType, string> = {
-  all: 'הכל',
-  friends: 'חברים',
-  breeding: 'זיווג',
-  walks: 'טיולים',
-};
+const FILTERS: { key: FilterType; label: string }[] = [
+  { key: 'all',     label: 'הכל' },
+  { key: 'walks',   label: 'טיולים' },
+  { key: 'friends', label: 'חברים' },
+];
 
-function shuffleArray<T>(arr: T[]): T[] {
+function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -45,17 +45,26 @@ function shuffleArray<T>(arr: T[]): T[] {
   return a;
 }
 
-// ─── Gradient overlay layers ───────────────────────────────────────────────────
-const GradientOverlay: React.FC = () => (
+// ─── Gradient overlay (pure views, no library dependency) ─────────────────────
+
+const CardGradient: React.FC = () => (
   <>
-    <View style={styles.gradientLayer1} />
-    <View style={styles.gradientLayer2} />
-    <View style={styles.gradientLayer3} />
-    <View style={styles.gradientLayer4} />
+    <View style={grad.l1} />
+    <View style={grad.l2} />
+    <View style={grad.l3} />
+    <View style={grad.l4} />
   </>
 );
 
+const grad = StyleSheet.create({
+  l1: { ...StyleSheet.absoluteFillObject, top: '50%', backgroundColor: 'rgba(10,20,15,0.08)' },
+  l2: { ...StyleSheet.absoluteFillObject, top: '62%', backgroundColor: 'rgba(10,20,15,0.22)' },
+  l3: { ...StyleSheet.absoluteFillObject, top: '74%', backgroundColor: 'rgba(10,20,15,0.45)' },
+  l4: { ...StyleSheet.absoluteFillObject, top: '83%', backgroundColor: 'rgba(10,20,15,0.62)' },
+});
+
 // ─── Swipe card ───────────────────────────────────────────────────────────────
+
 interface SwipeCardProps {
   dog: Dog;
   myDog: Dog | null;
@@ -65,178 +74,128 @@ interface SwipeCardProps {
   isTop: boolean;
 }
 
-const SwipeCard: React.FC<SwipeCardProps> = ({
-  dog,
-  myDog,
-  onSwipeRight,
-  onSwipeLeft,
-  onSwipeUp,
-  isTop,
+const SwipeCard = React.memo<SwipeCardProps>(({
+  dog, myDog, onSwipeRight, onSwipeLeft, onSwipeUp, isTop,
 }) => {
-  const translateX = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(0)).current;
+  const tx = useRef(new Animated.Value(0)).current;
+  const ty = useRef(new Animated.Value(0)).current;
+  const cbRef = useRef({ onSwipeRight, onSwipeLeft, onSwipeUp });
+  cbRef.current = { onSwipeRight, onSwipeLeft, onSwipeUp };
 
-  // Keep callback refs fresh on every render without recreating PanResponder
-  const handlersRef = useRef({ onSwipeRight, onSwipeLeft, onSwipeUp });
-  handlersRef.current = { onSwipeRight, onSwipeLeft, onSwipeUp };
+  const compat = myDog ? compatibilityScore(myDog, dog) : 72;
+  const dist = useRef(Math.floor(Math.random() * 14) + 1).current;
 
-  const compatibility = myDog ? compatibilityScore(myDog, dog) : 72;
-  const ageStr = getAgeString(dog.birthDate);
-  const distanceKm = Math.floor(Math.random() * 15) + 1;
-  const bioPreview =
-    dog.bio.length > 60 ? dog.bio.slice(0, 60) + '...' : dog.bio;
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderMove: (_, gestureState) => {
-        translateX.setValue(gestureState.dx);
-        translateY.setValue(gestureState.dy);
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        const { dx, dy } = gestureState;
-        if (dx > SWIPE_THRESHOLD) {
-          Animated.parallel([
-            Animated.timing(translateX, { toValue: SCREEN_WIDTH * 1.5, duration: 300, useNativeDriver: true }),
-            Animated.timing(translateY, { toValue: 50, duration: 300, useNativeDriver: true }),
-          ]).start(() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            handlersRef.current.onSwipeRight();
-          });
-        } else if (dx < -SWIPE_THRESHOLD) {
-          Animated.parallel([
-            Animated.timing(translateX, { toValue: -SCREEN_WIDTH * 1.5, duration: 300, useNativeDriver: true }),
-            Animated.timing(translateY, { toValue: 50, duration: 300, useNativeDriver: true }),
-          ]).start(() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            handlersRef.current.onSwipeLeft();
-          });
-        } else if (dy < SWIPE_UP_THRESHOLD) {
-          Animated.timing(translateY, { toValue: -SCREEN_HEIGHT, duration: 300, useNativeDriver: true }).start(() => {
+  const pan = useRef(PanResponder.create({
+    onStartShouldSetPanResponder: () => isTop,
+    onMoveShouldSetPanResponder:  () => isTop,
+    onPanResponderMove: (_, { dx, dy }) => {
+      tx.setValue(dx);
+      ty.setValue(dy);
+    },
+    onPanResponderRelease: (_, { dx, dy }) => {
+      if (dx > SWIPE_THRESHOLD) {
+        Animated.parallel([
+          Animated.timing(tx, { toValue: SCREEN_W * 1.5, duration: 280, useNativeDriver: true }),
+          Animated.timing(ty, { toValue: 60,             duration: 280, useNativeDriver: true }),
+        ]).start(() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          cbRef.current.onSwipeRight();
+        });
+      } else if (dx < -SWIPE_THRESHOLD) {
+        Animated.parallel([
+          Animated.timing(tx, { toValue: -SCREEN_W * 1.5, duration: 280, useNativeDriver: true }),
+          Animated.timing(ty, { toValue: 60,              duration: 280, useNativeDriver: true }),
+        ]).start(() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          cbRef.current.onSwipeLeft();
+        });
+      } else if (dy < SWIPE_UP_THRESHOLD) {
+        Animated.timing(ty, { toValue: -SCREEN_H, duration: 280, useNativeDriver: true })
+          .start(() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-            handlersRef.current.onSwipeUp();
+            cbRef.current.onSwipeUp();
           });
-        } else {
-          Animated.parallel([
-            Animated.spring(translateX, { toValue: 0, damping: 15, stiffness: 120, useNativeDriver: true }),
-            Animated.spring(translateY, { toValue: 0, damping: 15, stiffness: 120, useNativeDriver: true }),
-          ]).start();
-        }
-      },
-    })
-  ).current;
+      } else {
+        Animated.parallel([
+          Animated.spring(tx, { toValue: 0, damping: 18, stiffness: 130, useNativeDriver: true }),
+          Animated.spring(ty, { toValue: 0, damping: 18, stiffness: 130, useNativeDriver: true }),
+        ]).start();
+      }
+    },
+  })).current;
 
-  const rotate = translateX.interpolate({
-    inputRange: [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2],
+  const rotate = tx.interpolate({
+    inputRange: [-SCREEN_W / 2, 0, SCREEN_W / 2],
     outputRange: ['-12deg', '0deg', '12deg'],
     extrapolate: 'clamp',
   });
 
-  const rightOpacity = translateX.interpolate({
-    inputRange: [0, SWIPE_THRESHOLD],
-    outputRange: [0, 0.85],
-    extrapolate: 'clamp',
-  });
-
-  const leftOpacity = translateX.interpolate({
-    inputRange: [-SWIPE_THRESHOLD, 0],
-    outputRange: [0.85, 0],
-    extrapolate: 'clamp',
-  });
+  const likeOpacity = tx.interpolate({ inputRange: [0, SWIPE_THRESHOLD], outputRange: [0, 1], extrapolate: 'clamp' });
+  const nopeOpacity = tx.interpolate({ inputRange: [-SWIPE_THRESHOLD, 0], outputRange: [1, 0], extrapolate: 'clamp' });
 
   if (!isTop) {
     return (
-      <View
-        style={[
-          styles.card,
-          {
-            transform: [{ scale: 0.95 }, { translateY: 8 }],
-            zIndex: 0,
-            pointerEvents: 'none',
-          } as any,
-        ]}
-      >
-        <Image
-          source={{ uri: dog.photos[0] }}
-          style={StyleSheet.absoluteFillObject}
-          resizeMode="cover"
-        />
-        <GradientOverlay />
+      <View style={[styles.card, { transform: [{ scale: 0.96 }, { translateY: 10 }], zIndex: 0 }] as any}>
+        <Image source={{ uri: dog.photos[0] }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+        <CardGradient />
       </View>
     );
   }
 
   return (
     <Animated.View
-      {...panResponder.panHandlers}
-      style={[
-        styles.card,
-        {
-          transform: [{ translateX }, { translateY }, { rotate }],
-          zIndex: 10,
-        },
-      ]}
+      {...pan.panHandlers}
+      style={[styles.card, { transform: [{ translateX: tx }, { translateY: ty }, { rotate }], zIndex: 10 }]}
     >
-      <Image
-        source={{ uri: dog.photos[0] }}
-        style={StyleSheet.absoluteFillObject}
-        resizeMode="cover"
-      />
-      <GradientOverlay />
+      <Image source={{ uri: dog.photos[0] }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+      <CardGradient />
 
-      {/* Right swipe overlay */}
-      <Animated.View
-        style={[styles.swipeOverlay, styles.swipeOverlayRight, { opacity: rightOpacity }, { pointerEvents: 'none' } as any]}
-      >
-        <WText style={styles.swipeLabel}>נפגשים! 🐾</WText>
+      {/* LIKE stamp */}
+      <Animated.View style={[styles.stamp, styles.stampLike, { opacity: likeOpacity }]} pointerEvents="none">
+        <WText style={[styles.stampText, { color: Colors.success }]}>נצא?</WText>
       </Animated.View>
 
-      {/* Left swipe overlay */}
-      <Animated.View
-        style={[styles.swipeOverlay, styles.swipeOverlayLeft, { opacity: leftOpacity }, { pointerEvents: 'none' } as any]}
-      >
-        <WText style={styles.swipeLabel}>דילוג</WText>
+      {/* NOPE stamp */}
+      <Animated.View style={[styles.stamp, styles.stampNope, { opacity: nopeOpacity }]} pointerEvents="none">
+        <WText style={[styles.stampText, { color: Colors.error }]}>דלג</WText>
       </Animated.View>
 
       {/* Content */}
       <View style={styles.cardContent}>
+        {/* Compat badge */}
+        <View style={styles.compatBadge}>
+          <Ionicons name="star" size={12} color={Colors.yellow} />
+          <WText style={styles.compatText}>{compat}% התאמה</WText>
+        </View>
+
         <WText style={styles.dogName}>{dog.name}</WText>
 
         <WText style={styles.dogMeta}>
-          {dog.breed} • {ageStr} • ~{distanceKm} ק&quot;מ
+          {dog.breed} · {getAgeString(dog.birthDate)} ·{' '}
+          <Ionicons name="location" size={12} color="rgba(255,255,255,0.7)" />
+          {' '}{dist} ק"מ
         </WText>
 
         {/* Personality tags */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.tagsRow}
-        >
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tagsRow}>
           {dog.personality.slice(0, 4).map((tag, i) => (
-            <View key={i} style={styles.personalityPill}>
-              <WText style={styles.personalityPillText}>{tag}</WText>
+            <View key={i} style={styles.pill}>
+              <WText style={styles.pillText}>{tag}</WText>
             </View>
           ))}
         </ScrollView>
 
-        {/* Compatibility */}
-        <View style={styles.compatRow}>
-          <WText style={styles.compatText}>
-            💛 {compatibility}% התאמה
-          </WText>
-        </View>
-
-        {/* Bio */}
-        <WText style={styles.bioText} numberOfLines={2}>
-          {bioPreview}
-        </WText>
+        {/* Owner */}
+        {dog.ownerName && (
+          <WText style={styles.ownerText}>של {dog.ownerName.split(' ')[0]}</WText>
+        )}
       </View>
     </Animated.View>
   );
-};
+});
 
-// ─── Match Modal ─────────────────────────────────────────────────────────────
+// ─── Match modal ──────────────────────────────────────────────────────────────
+
 interface MatchModalProps {
   visible: boolean;
   matchedDog: Dog | null;
@@ -245,562 +204,524 @@ interface MatchModalProps {
   onContinue: () => void;
 }
 
-const MatchModal: React.FC<MatchModalProps> = ({
-  visible,
-  matchedDog,
-  myDog,
-  onMessage,
-  onContinue,
-}) => {
+const MatchModal = React.memo<MatchModalProps>(({ visible, matchedDog, myDog, onMessage, onContinue }) => {
+  const scale1 = useRef(new Animated.Value(0)).current;
+  const scale2 = useRef(new Animated.Value(0)).current;
+  const titleOp = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
     if (visible) {
-      const timer = setTimeout(onContinue, 5000);
-      return () => clearTimeout(timer);
+      scale1.setValue(0);
+      scale2.setValue(0);
+      titleOp.setValue(0);
+      Animated.sequence([
+        Animated.parallel([
+          Animated.spring(scale1, { toValue: 1, useNativeDriver: true, speed: 14, bounciness: 12 }),
+          Animated.delay(80),
+        ]),
+        Animated.parallel([
+          Animated.spring(scale2, { toValue: 1, useNativeDriver: true, speed: 14, bounciness: 12 }),
+          Animated.timing(titleOp, { toValue: 1, duration: 300, useNativeDriver: true }),
+        ]),
+      ]).start();
     }
-  }, [visible, onContinue]);
+  }, [visible]);
 
   if (!matchedDog) return null;
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      statusBarTranslucent
-      onRequestClose={onContinue}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.matchCard}>
-          <WText style={styles.matchTitle}>זה מאץ&apos;! 🎉</WText>
+    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onContinue}>
+      <View style={styles.matchOverlay}>
+        <Animated.View style={{ opacity: titleOp, alignItems: 'center', marginBottom: Spacing['2xl'] }}>
+          <WText style={styles.matchTitle}>זה מאץ׳!</WText>
+          <WText style={styles.matchSub}>תאמו טיול ביחד</WText>
+        </Animated.View>
 
-          <View style={styles.matchAvatarsRow}>
-            <Image
-              source={{ uri: myDog?.photos[0] ?? 'https://placedog.net/200/200?id=99' }}
-              style={styles.matchAvatar}
-            />
-            <WText style={styles.matchHeart}>❤️</WText>
-            <Image
-              source={{ uri: matchedDog.photos[0] }}
-              style={styles.matchAvatar}
-            />
+        <View style={styles.matchAvatars}>
+          <Animated.Image
+            source={{ uri: myDog?.photos[0] ?? 'https://placedog.net/200/200?id=99' }}
+            style={[styles.matchAvatar, { transform: [{ scale: scale1 }] }]}
+          />
+          <View style={styles.matchPawWrap}>
+            <MaterialCommunityIcons name="paw" size={28} color={Colors.terra} />
           </View>
+          <Animated.Image
+            source={{ uri: matchedDog.photos[0] }}
+            style={[styles.matchAvatar, { transform: [{ scale: scale2 }] }]}
+          />
+        </View>
 
-          <WText style={styles.matchSubtitle}>
-            {myDog?.name ?? 'הכלב שלך'} ו{matchedDog.name} רוצים להיפגש
-          </WText>
+        <WText style={styles.matchSubtitle}>
+          {myDog?.name ?? 'הכלב שלך'} ו{matchedDog.name} רוצים להיפגש
+        </WText>
 
-          <View style={styles.matchButtons}>
-            <WButton
-              label="שלח הודעה"
-              onPress={onMessage}
-              variant="primary"
-              size="md"
-              fullWidth
-              style={styles.matchBtn}
-            />
-            <WButton
-              label="המשך לגלול"
-              onPress={onContinue}
-              variant="outline"
-              size="md"
-              fullWidth
-              style={styles.matchBtn}
-            />
-          </View>
+        <View style={styles.matchBtns}>
+          <TouchableOpacity style={styles.matchBtnPrimary} onPress={onMessage} activeOpacity={0.88}>
+            <Ionicons name="paper-plane-outline" size={18} color={Colors.white} />
+            <WText style={styles.matchBtnPrimaryText}>שלח הודעה</WText>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.matchBtnOutline} onPress={onContinue} activeOpacity={0.88}>
+            <WText style={styles.matchBtnOutlineText}>המשך לגלול</WText>
+          </TouchableOpacity>
         </View>
       </View>
     </Modal>
   );
+});
+
+// ─── Action button ────────────────────────────────────────────────────────────
+
+interface ActionBtnProps {
+  onPress: () => void;
+  size: number;
+  bg: string;
+  children: React.ReactNode;
+}
+
+const ActionBtn: React.FC<ActionBtnProps> = ({ onPress, size, bg, children }) => {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const handlePress = () => {
+    Animated.sequence([
+      Animated.spring(scaleAnim, { toValue: 0.88, useNativeDriver: true, speed: 50, bounciness: 4 }),
+      Animated.spring(scaleAnim, { toValue: 1,    useNativeDriver: true, speed: 30, bounciness: 8 }),
+    ]).start();
+    onPress();
+  };
+  return (
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      <TouchableOpacity
+        onPress={handlePress}
+        activeOpacity={1}
+        style={[
+          styles.actionBtn,
+          { width: size, height: size, borderRadius: size / 2, backgroundColor: bg },
+        ]}
+      >
+        {children}
+      </TouchableOpacity>
+    </Animated.View>
+  );
 };
 
-// ─── Main Screen ──────────────────────────────────────────────────────────────
+// ─── Main screen ──────────────────────────────────────────────────────────────
+
 export const DiscoverScreen: React.FC = () => {
   const { state, likeDog, addMatch } = useApp();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
 
-  const [activeFilter, setActiveFilter] = useState<FilterType>('all');
+  const [filter, setFilter] = useState<FilterType>('walks');
   const [showMatch, setShowMatch] = useState(false);
   const [matchedDog, setMatchedDog] = useState<Dog | null>(null);
-  const [swipeCount, setSwipeCount] = useState(0);
+  const swipeCountRef = useRef(0);
 
-  // Build initial shuffled list, excluding own dog
-  const allDogs = React.useMemo(() => {
-    const filtered = MOCK_DOGS.filter((d) => d.id !== state.dog?.id);
-    return shuffleArray(filtered);
-  }, [state.dog?.id]);
+  const allDogs = React.useMemo(
+    () => shuffle(MOCK_DOGS.filter(d => d.id !== state.dog?.id)),
+    [state.dog?.id],
+  );
 
-  // Apply active filter
-  const filteredDogs = React.useMemo(() => {
-    if (activeFilter === 'all') return allDogs;
-    return allDogs.filter((d) => d.lookingFor.includes(activeFilter));
-  }, [allDogs, activeFilter]);
+  const filtered = React.useMemo(() => {
+    if (filter === 'all') return allDogs;
+    return allDogs.filter(d => d.lookingFor.includes(filter as any));
+  }, [allDogs, filter]);
 
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [idx, setIdx] = useState(0);
+  useEffect(() => { setIdx(0); }, [filter]);
 
-  // Reset index when filter changes
-  useEffect(() => {
-    setCurrentIndex(0);
-  }, [activeFilter]);
+  const current = filtered[idx] ?? null;
+  const next    = filtered[idx + 1] ?? null;
+  const done    = idx >= filtered.length;
 
-  const currentDog = filteredDogs[currentIndex] ?? null;
-  const nextDog = filteredDogs[currentIndex + 1] ?? null;
-  const isExhausted = currentIndex >= filteredDogs.length;
+  const advance = useCallback(() => setIdx(p => p + 1), []);
 
-  const advanceCard = useCallback(() => {
-    setCurrentIndex((prev) => prev + 1);
-  }, []);
-
-  const handleSwipeRight = useCallback(() => {
-    if (!currentDog) return;
-    likeDog(currentDog.id);
-    const newCount = swipeCount + 1;
-    setSwipeCount(newCount);
-    if (newCount % 3 === 0) {
-      addMatch(currentDog);
-      setMatchedDog(currentDog);
+  const handleRight = useCallback(() => {
+    if (!current) return;
+    likeDog(current.id);
+    swipeCountRef.current += 1;
+    if (swipeCountRef.current % 3 === 0) {
+      addMatch(current);
+      setMatchedDog(current);
       setShowMatch(true);
     }
-    advanceCard();
-  }, [currentDog, swipeCount, likeDog, addMatch, advanceCard]);
+    advance();
+  }, [current, likeDog, addMatch, advance]);
 
-  const handleSwipeLeft = useCallback(() => {
-    advanceCard();
-  }, [advanceCard]);
+  const handleLeft = useCallback(() => advance(), [advance]);
 
-  const handleSwipeUp = useCallback(() => {
-    if (!currentDog) return;
-    likeDog(currentDog.id);
-    advanceCard();
+  const handleUp = useCallback(() => {
+    if (!current) return;
+    likeDog(current.id);
+    advance();
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  }, [currentDog, likeDog, advanceCard]);
-
-  const handleActionPass = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    handleSwipeLeft();
-  }, [handleSwipeLeft]);
-
-  const handleActionMeet = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    handleSwipeRight();
-  }, [handleSwipeRight]);
-
-  const handleActionSuperLike = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    handleSwipeUp();
-  }, [handleSwipeUp]);
-
-  const handleMatchMessage = useCallback(() => {
-    setShowMatch(false);
-    navigation.navigate('Messages');
-  }, [navigation]);
-
-  const handleMatchContinue = useCallback(() => {
-    setShowMatch(false);
-    setMatchedDog(null);
-  }, []);
+  }, [current, likeDog, advance]);
 
   const handleReset = useCallback(() => {
-    setCurrentIndex(0);
-    setSwipeCount(0);
+    setIdx(0);
+    swipeCountRef.current = 0;
   }, []);
 
   return (
-    <View style={styles.root}>
-      <View style={[styles.root, { paddingTop: insets.top }]}>
-        {/* Filter chips */}
-        <View style={styles.filterBar}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filterContent}
-          >
-            {(Object.keys(FILTER_LABELS) as FilterType[]).map((filter) => (
-              <TouchableOpacity
-                key={filter}
-                style={[
-                  styles.filterChip,
-                  activeFilter === filter
-                    ? styles.filterChipActive
-                    : styles.filterChipInactive,
-                ]}
-                onPress={() => setActiveFilter(filter)}
-                activeOpacity={0.75}
-              >
-                <WText
-                  style={[
-                    styles.filterChipText,
-                    activeFilter === filter
-                      ? styles.filterChipTextActive
-                      : styles.filterChipTextInactive,
-                  ]}
-                >
-                  {FILTER_LABELS[filter]}
-                </WText>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+    <View style={[styles.root, { paddingTop: insets.top }]}>
+
+      {/* ── Header ──────────────────────────────────────────────────────────── */}
+      <View style={styles.header}>
+        <View>
+          <WText style={styles.headerTitle}>גלה כלבים</WText>
+          <WText style={styles.headerSub}>לטיולים משותפים בלבד</WText>
         </View>
+        <TouchableOpacity
+          style={styles.filterIconBtn}
+          onPress={() => Alert.alert('פילטרים', 'פילטרים מתקדמים יהיו זמינים בקרוב')}
+          activeOpacity={0.75}
+        >
+          <Ionicons name="options-outline" size={22} color={Colors.forest} />
+        </TouchableOpacity>
+      </View>
 
-        {/* Card stack */}
-        <View style={styles.cardStack}>
-          {isExhausted ? (
-            // Empty state
-            <View style={styles.emptyState}>
-              <WText style={styles.emptyEmoji}>🐾</WText>
-              <WText variant="h2" center style={{ color: Colors.forest, marginTop: 12 }}>
-                ראית את כולם!
-              </WText>
-              <WText
-                variant="body"
-                center
-                color={Colors.gray}
-                style={{ marginTop: 8, marginBottom: 32 }}
-              >
-                בדוק שוב מחר 🐾
-              </WText>
-              <WButton
-                label="רענן"
-                onPress={handleReset}
-                variant="primary"
-                size="md"
-                fullWidth={false}
-              />
-            </View>
-          ) : (
-            <>
-              {/* Next card (behind) */}
-              {nextDog && (
-                <View style={[styles.cardWrapper, { pointerEvents: 'none' } as any]}>
-                  <SwipeCard
-                    key={`next-${nextDog.id}`}
-                    dog={nextDog}
-                    myDog={state.dog}
-                    onSwipeRight={() => {}}
-                    onSwipeLeft={() => {}}
-                    onSwipeUp={() => {}}
-                    isTop={false}
-                  />
-                </View>
-              )}
-
-              {/* Current top card */}
-              {currentDog && (
-                <View style={styles.cardWrapper}>
-                  <SwipeCard
-                    key={`top-${currentDog.id}-${currentIndex}`}
-                    dog={currentDog}
-                    myDog={state.dog}
-                    onSwipeRight={handleSwipeRight}
-                    onSwipeLeft={handleSwipeLeft}
-                    onSwipeUp={handleSwipeUp}
-                    isTop={true}
-                  />
-                </View>
-              )}
-            </>
-          )}
-        </View>
-
-        {/* Action buttons */}
-        {!isExhausted && currentDog && (
-          <View style={styles.actionRow}>
-            {/* Pass */}
+      {/* ── Filter chips ────────────────────────────────────────────────────── */}
+      <View style={styles.filterBar}>
+        {FILTERS.map(f => {
+          const active = filter === f.key;
+          return (
             <TouchableOpacity
-              style={[styles.actionBtn, styles.actionBtnPass]}
-              onPress={handleActionPass}
-              activeOpacity={0.8}
+              key={f.key}
+              style={[styles.chip, active && styles.chipActive]}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setFilter(f.key);
+              }}
+              activeOpacity={0.75}
             >
-              <WText style={styles.actionIcon}>❌</WText>
+              <WText style={[styles.chipText, active && styles.chipTextActive]}>{f.label}</WText>
             </TouchableOpacity>
+          );
+        })}
+      </View>
 
-            {/* Super Like */}
-            <TouchableOpacity
-              style={[styles.actionBtn, styles.actionBtnSuperLike]}
-              onPress={handleActionSuperLike}
-              activeOpacity={0.8}
-            >
-              <WText style={styles.actionIcon}>⭐</WText>
-            </TouchableOpacity>
-
-            {/* Meet */}
-            <TouchableOpacity
-              style={[styles.actionBtn, styles.actionBtnMeet]}
-              onPress={handleActionMeet}
-              activeOpacity={0.8}
-            >
-              <WText style={styles.actionIconLarge}>🐾</WText>
+      {/* ── Card stack ──────────────────────────────────────────────────────── */}
+      <View style={styles.stack}>
+        {done ? (
+          <View style={styles.empty}>
+            <MaterialCommunityIcons name="paw" size={72} color={Colors.cream2} />
+            <WText style={styles.emptyTitle}>ראית את כולם!</WText>
+            <WText style={styles.emptySub}>בדוק שוב מחר</WText>
+            <TouchableOpacity style={styles.resetBtn} onPress={handleReset} activeOpacity={0.85}>
+              <WText style={styles.resetBtnText}>רענן</WText>
             </TouchableOpacity>
           </View>
+        ) : (
+          <>
+            {next && (
+              <View style={styles.cardWrap} pointerEvents="none">
+                <SwipeCard
+                  key={`next-${next.id}`}
+                  dog={next}
+                  myDog={state.dog}
+                  onSwipeRight={() => {}}
+                  onSwipeLeft={() => {}}
+                  onSwipeUp={() => {}}
+                  isTop={false}
+                />
+              </View>
+            )}
+            {current && (
+              <View style={styles.cardWrap}>
+                <SwipeCard
+                  key={`top-${current.id}-${idx}`}
+                  dog={current}
+                  myDog={state.dog}
+                  onSwipeRight={handleRight}
+                  onSwipeLeft={handleLeft}
+                  onSwipeUp={handleUp}
+                  isTop
+                />
+              </View>
+            )}
+          </>
         )}
-
-        {/* Match Modal */}
-        <MatchModal
-          visible={showMatch}
-          matchedDog={matchedDog}
-          myDog={state.dog}
-          onMessage={handleMatchMessage}
-          onContinue={handleMatchContinue}
-        />
       </View>
+
+      {/* ── Action buttons ──────────────────────────────────────────────────── */}
+      {!done && current && (
+        <View style={styles.actions}>
+          <ActionBtn onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); handleLeft(); }} size={58} bg={Colors.white}>
+            <Ionicons name="close" size={28} color={Colors.error} />
+          </ActionBtn>
+
+          <ActionBtn onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); handleUp(); }} size={52} bg={Colors.yellow}>
+            <Ionicons name="star" size={24} color={Colors.white} />
+          </ActionBtn>
+
+          <ActionBtn onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleRight(); }} size={68} bg={Colors.terra}>
+            <MaterialCommunityIcons name="paw" size={30} color={Colors.white} />
+          </ActionBtn>
+        </View>
+      )}
+
+      {/* ── Match modal ─────────────────────────────────────────────────────── */}
+      <MatchModal
+        visible={showMatch}
+        matchedDog={matchedDog}
+        myDog={state.dog}
+        onMessage={() => { setShowMatch(false); navigation.navigate('Messages'); }}
+        onContinue={() => { setShowMatch(false); setMatchedDog(null); }}
+      />
     </View>
   );
 };
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: Colors.cream,
+  root: { flex: 1, backgroundColor: Colors.background },
+
+  // Header
+  header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.base,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.sm,
+    backgroundColor: Colors.white,
+    borderBottomWidth: 0.5,
+    borderBottomColor: Colors.border,
+  },
+  headerTitle: {
+    fontFamily: FontFamily.displayBlack,
+    fontSize: FontSize['2xl'],
+    color: Colors.text,
+  },
+  headerSub: {
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  filterIconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.cream2,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
-  // ── Filter bar
+  // Filter chips
   filterBar: {
-    backgroundColor: Colors.white,
-    paddingVertical: 12,
-  },
-  filterContent: {
-    paddingHorizontal: 16,
-    gap: 8,
     flexDirection: 'row',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.base,
+    paddingVertical: Spacing.md,
+    backgroundColor: Colors.white,
   },
-  filterChip: {
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    borderRadius: Radius.pill,
-    marginRight: 8,
-  },
-  filterChipActive: {
-    backgroundColor: Colors.terra,
-  },
-  filterChipInactive: {
+  chip: {
+    paddingHorizontal: Spacing.base,
+    paddingVertical: 7,
+    borderRadius: Radius.full,
     backgroundColor: Colors.cream2,
   },
-  filterChipText: {
+  chipActive: { backgroundColor: Colors.terra },
+  chipText: {
     fontFamily: FontFamily.semibold,
     fontSize: FontSize.sm,
+    color: Colors.textSecondary,
   },
-  filterChipTextActive: {
-    color: Colors.white,
-  },
-  filterChipTextInactive: {
-    color: Colors.gray,
-  },
+  chipTextActive: { color: Colors.white },
 
-  // ── Card stack
-  cardStack: {
+  // Card stack
+  stack: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingHorizontal: Spacing.base,
+    paddingTop: Spacing.md,
   },
-  cardWrapper: {
+  cardWrap: {
     position: 'absolute',
-    width: SCREEN_WIDTH - 32,
+    width: SCREEN_W - Spacing.base * 2,
     height: CARD_HEIGHT,
   },
   card: {
     width: '100%',
     height: CARD_HEIGHT,
-    borderRadius: Radius.large,
+    borderRadius: Radius.lg,
     overflow: 'hidden',
     backgroundColor: Colors.cream2,
     ...Shadow.strong,
   },
 
-  // ── Gradient layers (simulate dark bottom gradient)
-  gradientLayer1: {
-    ...StyleSheet.absoluteFillObject,
-    top: '55%',
-    backgroundColor: 'rgba(26,26,46,0.08)',
-  },
-  gradientLayer2: {
-    ...StyleSheet.absoluteFillObject,
-    top: '65%',
-    backgroundColor: 'rgba(26,26,46,0.20)',
-  },
-  gradientLayer3: {
-    ...StyleSheet.absoluteFillObject,
-    top: '75%',
-    backgroundColor: 'rgba(26,26,46,0.38)',
-  },
-  gradientLayer4: {
-    ...StyleSheet.absoluteFillObject,
-    top: '82%',
-    backgroundColor: 'rgba(26,26,46,0.55)',
-  },
-
-  // ── Swipe overlays
-  swipeOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: Radius.large,
-  },
-  swipeOverlayRight: {
-    backgroundColor: 'rgba(76,175,125,0.55)',
-  },
-  swipeOverlayLeft: {
-    backgroundColor: 'rgba(232,93,74,0.55)',
-  },
-  swipeLabel: {
-    fontFamily: FontFamily.displayBlack,
-    fontSize: FontSize['3xl'],
-    color: Colors.white,
-  },
-
-  // ── Card content
-  cardContent: {
+  // Stamp labels
+  stamp: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 20,
-  },
-  dogName: {
-    fontFamily: FontFamily.displayBlack,
-    fontSize: 32,
-    color: Colors.white,
-    lineHeight: 38,
-  },
-  dogMeta: {
-    fontFamily: FontFamily.regular,
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.75)',
-    marginTop: 2,
-  },
-  tagsRow: {
-    flexDirection: 'row',
-    marginTop: 8,
-    gap: 6,
-  },
-  personalityPill: {
-    backgroundColor: 'rgba(255,255,255,0.20)',
-    borderRadius: Radius.pill,
+    top: 52,
+    borderWidth: 3,
+    borderRadius: Radius.sm,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    marginRight: 6,
   },
-  personalityPillText: {
-    fontFamily: FontFamily.medium,
-    fontSize: FontSize.xs,
-    color: Colors.white,
+  stampLike: { left: 20, borderColor: Colors.success, transform: [{ rotate: '-15deg' }] },
+  stampNope: { right: 20, borderColor: Colors.error,   transform: [{ rotate: '15deg'  }] },
+  stampText: {
+    fontFamily: FontFamily.displayBlack,
+    fontSize: FontSize['2xl'],
+    letterSpacing: 2,
   },
-  compatRow: {
-    marginTop: 8,
+
+  // Card content
+  cardContent: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: Spacing.lg },
+  compatBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(245,200,66,0.20)',
+    borderRadius: Radius.full,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    alignSelf: 'flex-end',
+    marginBottom: Spacing.sm,
   },
   compatText: {
     fontFamily: FontFamily.semibold,
-    fontSize: 14,
+    fontSize: FontSize.xs,
     color: Colors.yellow,
   },
-  bioText: {
+  dogName: {
+    fontFamily: FontFamily.displayBlack,
+    fontSize: 34,
+    color: Colors.white,
+    lineHeight: 40,
+  },
+  dogMeta: {
+    fontFamily: FontFamily.medium,
+    fontSize: FontSize.sm,
+    color: 'rgba(255,255,255,0.75)',
+    marginTop: 2,
+  },
+  tagsRow: { flexDirection: 'row', marginTop: Spacing.sm, gap: 6 },
+  pill: {
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderRadius: Radius.full,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  pillText: { fontFamily: FontFamily.medium, fontSize: FontSize.xs, color: Colors.white },
+  ownerText: {
     fontFamily: FontFamily.regular,
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.70)',
-    marginTop: 4,
+    fontSize: FontSize.sm,
+    color: 'rgba(255,255,255,0.60)',
+    marginTop: Spacing.sm,
   },
 
-  // ── Action buttons
-  actionRow: {
+  // Action buttons
+  actions: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingBottom: 24,
-    gap: 20,
+    paddingVertical: Spacing.base,
+    paddingBottom: Spacing.xl,
+    gap: Spacing.xl,
   },
   actionBtn: {
-    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.white,
-    ...Shadow.medium,
-  },
-  actionBtnPass: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-  },
-  actionBtnSuperLike: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: Colors.yellow,
-  },
-  actionBtnMeet: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: Colors.terra,
-  },
-  actionIcon: {
-    fontSize: 22,
-  },
-  actionIconLarge: {
-    fontSize: 26,
+    justifyContent: 'center',
+    ...Shadow.md,
   },
 
-  // ── Empty state
-  emptyState: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 40,
-  },
-  emptyEmoji: {
-    fontSize: 72,
-  },
-
-  // ── Match modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: Colors.overlayDark,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-  },
-  matchCard: {
-    backgroundColor: Colors.white,
-    borderRadius: Radius.large,
-    padding: Spacing['2xl'],
-    width: '100%',
-    alignItems: 'center',
-    ...Shadow.strong,
-  },
-  matchTitle: {
+  // Empty state
+  empty: { alignItems: 'center', gap: Spacing.md },
+  emptyTitle: {
     fontFamily: FontFamily.displayBlack,
     fontSize: FontSize['2xl'],
     color: Colors.forest,
-    marginBottom: 20,
   },
-  matchAvatarsRow: {
+  emptySub: { fontFamily: FontFamily.regular, fontSize: FontSize.base, color: Colors.textSecondary },
+  resetBtn: {
+    marginTop: Spacing.sm,
+    backgroundColor: Colors.terra,
+    borderRadius: Radius.full,
+    paddingHorizontal: Spacing['2xl'],
+    paddingVertical: Spacing.md,
+  },
+  resetBtnText: {
+    fontFamily: FontFamily.bold,
+    fontSize: FontSize.base,
+    color: Colors.white,
+  },
+
+  // Match overlay
+  matchOverlay: {
+    flex: 1,
+    backgroundColor: Colors.secondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing['2xl'],
+  },
+  matchTitle: {
+    fontFamily: FontFamily.displayBlack,
+    fontSize: FontSize['4xl'],
+    color: Colors.white,
+    marginBottom: Spacing.sm,
+  },
+  matchSub: {
+    fontFamily: FontFamily.medium,
+    fontSize: FontSize.md,
+    color: 'rgba(255,255,255,0.70)',
+  },
+  matchAvatars: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
-    gap: 12,
+    gap: Spacing.lg,
+    marginBottom: Spacing.xl,
   },
   matchAvatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     borderWidth: 3,
     borderColor: Colors.terra,
   },
-  matchHeart: {
-    fontSize: 28,
+  matchPawWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   matchSubtitle: {
     fontFamily: FontFamily.medium,
-    fontSize: 16,
-    color: Colors.text,
+    fontSize: FontSize.md,
+    color: 'rgba(255,255,255,0.80)',
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: Spacing['2xl'],
   },
-  matchButtons: {
-    width: '100%',
-    gap: 10,
+  matchBtns: { width: '100%', gap: Spacing.md },
+  matchBtnPrimary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    backgroundColor: Colors.terra,
+    borderRadius: Radius.full,
+    paddingVertical: Spacing.base,
+    ...Shadow.md,
   },
-  matchBtn: {
-    marginBottom: 8,
+  matchBtnPrimaryText: {
+    fontFamily: FontFamily.bold,
+    fontSize: FontSize.md,
+    color: Colors.white,
+  },
+  matchBtnOutline: {
+    alignItems: 'center',
+    borderRadius: Radius.full,
+    paddingVertical: Spacing.base,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.35)',
+  },
+  matchBtnOutlineText: {
+    fontFamily: FontFamily.medium,
+    fontSize: FontSize.md,
+    color: 'rgba(255,255,255,0.80)',
   },
 });

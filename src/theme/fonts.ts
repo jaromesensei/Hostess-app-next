@@ -1,4 +1,5 @@
 import {
+  Nunito_700Bold,
   Nunito_800ExtraBold,
   Nunito_900Black,
 } from '@expo-google-fonts/nunito';
@@ -10,6 +11,7 @@ import {
 } from '@expo-google-fonts/inter';
 
 export const fontMap = {
+  Nunito_700Bold,
   Nunito_800ExtraBold,
   Nunito_900Black,
   Inter_400Regular,
@@ -21,22 +23,23 @@ export const fontMap = {
 export const FontFamily = {
   // Display / Headlines
   displayBlack: 'Nunito_900Black',
-  displayBold: 'Nunito_800ExtraBold',
+  displayBold:  'Nunito_800ExtraBold',
+  displayMed:   'Nunito_700Bold',
 
   // Body / UI
-  regular: 'Inter_400Regular',
-  medium: 'Inter_500Medium',
+  regular:  'Inter_400Regular',
+  medium:   'Inter_500Medium',
   semibold: 'Inter_600SemiBold',
-  bold: 'Inter_700Bold',
+  bold:     'Inter_700Bold',
 } as const;
 
 export const FontSize = {
-  xs: 11,
-  sm: 13,
-  base: 15,
-  md: 17,
-  lg: 20,
-  xl: 24,
+  xs:    11,
+  sm:    13,
+  base:  15,
+  md:    17,
+  lg:    20,
+  xl:    24,
   '2xl': 28,
   '3xl': 34,
   '4xl': 40,
@@ -44,7 +47,7 @@ export const FontSize = {
 } as const;
 
 export const LineHeight = {
-  tight: 1.2,
-  normal: 1.5,
+  tight:   1.2,
+  normal:  1.5,
   relaxed: 1.7,
 } as const;

@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { CommonActions } from '@react-navigation/native';
 import { useNavigation } from '@react-navigation/native';
@@ -35,18 +36,33 @@ import { WoofyProModal } from '@/screens/WoofyProModal';
 type HealthType = HealthRecord['type'];
 type ReminderType = Reminder['type'];
 
-const HEALTH_TYPE_OPTIONS: { type: HealthType; emoji: string; label: string }[] = [
-  { type: 'vaccine',    emoji: '💉', label: 'חיסון' },
-  { type: 'vet_visit',  emoji: '🏥', label: 'ביקור וטרינר' },
-  { type: 'medication', emoji: '💊', label: 'תרופה' },
-  { type: 'other',      emoji: '📝', label: 'אחר' },
+type IconLib = 'ion' | 'mci';
+
+interface HealthTypeOption {
+  type: HealthType;
+  label: string;
+  icon: string;
+  lib: IconLib;
+}
+interface ReminderTypeOption {
+  type: ReminderType;
+  label: string;
+  icon: string;
+  lib: IconLib;
+}
+
+const HEALTH_TYPE_OPTIONS: HealthTypeOption[] = [
+  { type: 'vaccine',    label: 'חיסון',         icon: 'needle',             lib: 'mci' },
+  { type: 'vet_visit',  label: 'ביקור וטרינר',   icon: 'hospital-box',       lib: 'mci' },
+  { type: 'medication', label: 'תרופה',           icon: 'pill',               lib: 'mci' },
+  { type: 'other',      label: 'אחר',             icon: 'clipboard-outline',  lib: 'ion' },
 ];
 
-const REMINDER_TYPE_OPTIONS: { type: ReminderType; emoji: string; label: string }[] = [
-  { type: 'food',       emoji: '🍖', label: 'אוכל' },
-  { type: 'walk',       emoji: '🦮', label: 'טיול' },
-  { type: 'medication', emoji: '💊', label: 'תרופה' },
-  { type: 'other',      emoji: '🔔', label: 'אחר' },
+const REMINDER_TYPE_OPTIONS: ReminderTypeOption[] = [
+  { type: 'food',       label: 'אוכל',   icon: 'food-drumstick',  lib: 'mci' },
+  { type: 'walk',       label: 'טיול',   icon: 'dog',             lib: 'mci' },
+  { type: 'medication', label: 'תרופה',  icon: 'pill',            lib: 'mci' },
+  { type: 'other',      label: 'אחר',    icon: 'notifications-outline', lib: 'ion' },
 ];
 
 const REMINDER_DEFAULT_TITLES: Record<ReminderType, string> = {
@@ -92,13 +108,20 @@ function parseDateInput(input: string): string {
   return input;
 }
 
-function healthTypeIcon(type: HealthType): string {
+function getHealthIcon(type: HealthType): { icon: string; lib: IconLib } {
   switch (type) {
-    case 'vaccine':    return '💉';
-    case 'vet_visit':  return '🏥';
-    case 'medication': return '💊';
-    default:           return '📝';
+    case 'vaccine':    return { icon: 'needle',            lib: 'mci' };
+    case 'vet_visit':  return { icon: 'hospital-box',      lib: 'mci' };
+    case 'medication': return { icon: 'pill',              lib: 'mci' };
+    default:           return { icon: 'clipboard-outline', lib: 'ion' };
   }
+}
+
+function TypeIcon({ icon, lib, size, color }: { icon: string; lib: IconLib; size: number; color: string }) {
+  if (lib === 'mci') {
+    return <MaterialCommunityIcons name={icon as any} size={size} color={color} />;
+  }
+  return <Ionicons name={icon as any} size={size} color={color} />;
 }
 
 // ─── Main Screen ────────────────────────────────────────────────────────────
@@ -352,7 +375,8 @@ export const MyDogScreen: React.FC = () => {
             onPress={() => Alert.alert('עריכה', 'פונקציית עריכה תהיה זמינה בקרוב')}
             activeOpacity={0.8}
           >
-            <WText style={styles.editButtonText}>✏️ ערוך</WText>
+            <Ionicons name="pencil" size={14} color={Colors.white} />
+            <WText style={styles.editButtonText}>ערוך</WText>
           </TouchableOpacity>
         </View>
 
@@ -509,7 +533,7 @@ export const MyDogScreen: React.FC = () => {
               activeOpacity={0.85}
             >
               <View style={styles.healthIconCircle}>
-                <WText style={{ fontSize: 20 }}>{healthTypeIcon(record.type)}</WText>
+                <TypeIcon {...getHealthIcon(record.type)} size={20} color={Colors.forest} />
               </View>
               <View style={styles.healthContent}>
                 <WText variant="bodySemibold">{record.title}</WText>
@@ -566,9 +590,10 @@ export const MyDogScreen: React.FC = () => {
               activeOpacity={0.85}
             >
               <View style={styles.reminderIconCircle}>
-                <WText style={{ fontSize: 20 }}>
-                  {REMINDER_TYPE_OPTIONS.find(o => o.type === rem.type)?.emoji ?? '🔔'}
-                </WText>
+                {(() => {
+                  const opt = REMINDER_TYPE_OPTIONS.find(o => o.type === rem.type);
+                  return opt ? <TypeIcon icon={opt.icon} lib={opt.lib} size={20} color={Colors.terra} /> : null;
+                })()}
               </View>
               <View style={styles.reminderContent}>
                 <WText variant="bodySemibold">{rem.title}</WText>
@@ -636,9 +661,8 @@ export const MyDogScreen: React.FC = () => {
                 style={[styles.chip, hType === opt.type && styles.chipSelected]}
                 onPress={() => setHType(opt.type)}
               >
-                <WText style={styles.chipText}>
-                  {opt.emoji} {opt.label}
-                </WText>
+                <TypeIcon icon={opt.icon} lib={opt.lib} size={16} color={hType === opt.type ? Colors.terra : Colors.gray} />
+                <WText style={styles.chipText}>{opt.label}</WText>
               </TouchableOpacity>
             ))}
           </View>
@@ -723,9 +747,8 @@ export const MyDogScreen: React.FC = () => {
                   if (!editingReminderId) setRTitle(REMINDER_DEFAULT_TITLES[opt.type]);
                 }}
               >
-                <WText style={styles.chipText}>
-                  {opt.emoji} {opt.label}
-                </WText>
+                <TypeIcon icon={opt.icon} lib={opt.lib} size={16} color={rType === opt.type ? Colors.terra : Colors.gray} />
+                <WText style={styles.chipText}>{opt.label}</WText>
               </TouchableOpacity>
             ))}
           </View>
@@ -861,16 +884,20 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: Spacing.base,
     right: Spacing.base,
-    backgroundColor: Colors.white,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.18)',
     borderRadius: Radius.pill,
-    paddingHorizontal: Spacing.base,
+    paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs,
-    ...Shadow.soft,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.30)',
   },
   editButtonText: {
     fontFamily: FontFamily.semibold,
     fontSize: FontSize.sm,
-    color: Colors.terra,
+    color: Colors.white,
   },
 
   // Profile card
@@ -1146,6 +1173,9 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   },
   chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     borderWidth: 1.5,
     borderColor: Colors.border,
     borderRadius: Radius.pill,

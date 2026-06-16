@@ -31,6 +31,7 @@ import { MOCK_EVENTS, formatEventDate } from '@/data/mockEvents';
 import { MOCK_NOTIFICATIONS } from '@/data/mockNotifications';
 import { NotificationsModal } from '@/screens/NotificationsModal';
 import { DogProfileModal, DogProfileInfo } from '@/screens/DogProfileModal';
+import { CameraFAB } from '@/components/CameraFAB';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -721,6 +722,8 @@ export const FeedScreen: React.FC = () => {
         profile={dogProfile}
         onClose={() => setDogProfile(null)}
       />
+
+      <CameraFAB />
     </SafeAreaView>
   );
 };
