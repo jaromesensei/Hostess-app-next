@@ -7,7 +7,6 @@ import {
   Platform,
   Linking,
   Dimensions,
-  Text,
   FlatList,
   Image,
   Alert,
@@ -19,6 +18,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { WText, WButton, WTag, WBottomSheet } from '@/components/ui';
 import { MOCK_PLACES, PLACE_CATEGORIES, MARKER_COLORS, PlaceCategory } from '@/data/mockPlaces';
 import { MOCK_SERVICES, SERVICE_CATEGORIES, ServiceCategory } from '@/data/mockServices';
@@ -41,25 +41,61 @@ const CAT_INFO: Record<string, { label: string; color: string }> = {
   vet:     { label: 'וטרינר',        color: Colors.error  },
 };
 
+// ─── Place category icon map ──────────────────────────────────────────────────
+
+const PLACE_ICON: Record<string, { name: string; lib: 'ion' | 'mci' }> = {
+  all:   { name: 'map-outline',       lib: 'ion' },
+  vet:   { name: 'hospital-box',      lib: 'mci' },
+  park:  { name: 'tree',              lib: 'mci' },
+  beach: { name: 'waves',             lib: 'mci' },
+  cafe:  { name: 'coffee-outline',    lib: 'ion' },
+  store: { name: 'bag-handle-outline',lib: 'ion' },
+};
+
+function PlaceIcon({ category, size, color }: { category: string; size: number; color: string }) {
+  const cfg = PLACE_ICON[category] ?? PLACE_ICON.all;
+  if (cfg.lib === 'mci') return <MaterialCommunityIcons name={cfg.name as any} size={size} color={color} />;
+  return <Ionicons name={cfg.name as any} size={size} color={color} />;
+}
+
+const SVC_ICON: Record<string, { name: string; lib: 'ion' | 'mci' }> = {
+  all:     { name: 'apps-outline',       lib: 'ion' },
+  walker:  { name: 'dog',               lib: 'mci' },
+  groomer: { name: 'content-cut',       lib: 'mci' },
+  trainer: { name: 'whistle-outline',   lib: 'mci' },
+  sitter:  { name: 'home-heart',        lib: 'mci' },
+  vet:     { name: 'hospital-box',      lib: 'mci' },
+};
+
+function SvcIcon({ category, size, color }: { category: string; size: number; color: string }) {
+  const cfg = SVC_ICON[category] ?? SVC_ICON.all;
+  if (cfg.lib === 'mci') return <MaterialCommunityIcons name={cfg.name as any} size={size} color={color} />;
+  return <Ionicons name={cfg.name as any} size={size} color={color} />;
+}
+
 // ─── Map: custom marker ───────────────────────────────────────────────────────
 
-const MarkerView: React.FC<{ emoji: string; category: string }> = ({ emoji, category }) => (
+const MarkerView: React.FC<{ category: string }> = ({ category }) => (
   <View style={[styles.markerContainer, { backgroundColor: MARKER_COLORS[category] ?? Colors.terra }]}>
-    <Text style={styles.markerEmoji}>{emoji}</Text>
+    <PlaceIcon category={category} size={16} color={Colors.white} />
   </View>
 );
 
 // ─── Map: category chip ───────────────────────────────────────────────────────
 
 const CategoryChip: React.FC<{
-  label: string; emoji: string; isActive: boolean; onPress: () => void;
-}> = ({ label, emoji, isActive, onPress }) => (
+  label: string; category: string; isActive: boolean; onPress: () => void;
+}> = ({ label, category, isActive, onPress }) => (
   <TouchableOpacity
     activeOpacity={0.75}
     onPress={onPress}
     style={[styles.chip, isActive ? styles.chipActive : styles.chipInactive]}
   >
-    <Text style={styles.chipEmoji}>{emoji}</Text>
+    <PlaceIcon
+      category={category}
+      size={14}
+      color={isActive ? Colors.white : Colors.textSecondary}
+    />
     <WText style={[styles.chipLabel, isActive ? styles.chipLabelActive : styles.chipLabelInactive]}>
       {label}
     </WText>
@@ -69,8 +105,6 @@ const CategoryChip: React.FC<{
 // ─── Map: bottom sheet place card ─────────────────────────────────────────────
 
 const PlaceSheet: React.FC<{ place: PlaceOfInterest }> = ({ place }) => {
-  const stars = '⭐'.repeat(Math.round(place.rating));
-
   const handleNavigate = () => {
     const url = Platform.OS === 'ios'
       ? `maps://app?daddr=${place.latitude},${place.longitude}`
@@ -82,7 +116,10 @@ const PlaceSheet: React.FC<{ place: PlaceOfInterest }> = ({ place }) => {
 
   return (
     <View style={styles.sheetContent}>
-      <Text style={styles.placeEmoji}>{place.emoji}</Text>
+      {/* Icon + color circle */}
+      <View style={[styles.placeIconCircle, { backgroundColor: (MARKER_COLORS[place.category] ?? Colors.terra) + '18' }]}>
+        <PlaceIcon category={place.category} size={28} color={MARKER_COLORS[place.category] ?? Colors.terra} />
+      </View>
       <WText variant="h3" color={Colors.forest} center style={styles.placeName}>{place.name}</WText>
       <View style={styles.categoryBadgeRow}>
         <WTag
@@ -90,21 +127,40 @@ const PlaceSheet: React.FC<{ place: PlaceOfInterest }> = ({ place }) => {
           selected selectedColor={Colors.terra} small
         />
       </View>
+      {/* Rating with star icons */}
       <View style={styles.ratingRow}>
-        <Text style={styles.ratingStars}>{stars}</Text>
-        <WText variant="captionMedium" color={Colors.gray}>{place.rating}/5</WText>
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Ionicons key={i} name={i < Math.round(place.rating) ? 'star' : 'star-outline'} size={14} color={Colors.yellow} />
+        ))}
+        <WText variant="captionMedium" color={Colors.gray} style={{ marginLeft: 4 }}>{place.rating}</WText>
       </View>
-      <WText variant="body" color={Colors.gray} center style={styles.address}>{place.address}</WText>
+      {/* Address */}
+      <View style={styles.addressRow}>
+        <Ionicons name="location-outline" size={14} color={Colors.gray} />
+        <WText variant="body" color={Colors.gray} style={styles.address}>{place.address}</WText>
+      </View>
+      {/* Open/closed */}
       <View style={[styles.openBadge, place.isOpen ? styles.openBadgeOpen : styles.openBadgeClosed]}>
+        <Ionicons name={place.isOpen ? 'checkmark-circle' : 'close-circle'} size={13} color={place.isOpen ? Colors.success : Colors.error} />
         <WText variant="captionMedium" style={place.isOpen ? styles.openTextOpen : styles.openTextClosed}>
-          {place.isOpen ? 'פתוח עכשיו ✓' : 'סגור'}
+          {place.isOpen ? 'פתוח עכשיו' : 'סגור'}
         </WText>
       </View>
-      {place.phone && <WText variant="body" color={Colors.terra} center style={styles.phone}>📞 {place.phone}</WText>}
+      {/* Phone */}
+      {place.phone && (
+        <View style={styles.phoneRow}>
+          <Ionicons name="call-outline" size={14} color={Colors.terra} />
+          <WText variant="body" color={Colors.terra}>{place.phone}</WText>
+        </View>
+      )}
       <WText variant="captionMedium" color={Colors.gray} center numberOfLines={2} style={styles.description}>
         {place.description}
       </WText>
-      <WButton label="נווט 🗺️" onPress={handleNavigate} variant="primary" size="md" fullWidth style={styles.navigateBtn} />
+      {/* Navigate button */}
+      <TouchableOpacity style={styles.navigateBtn} onPress={handleNavigate} activeOpacity={0.85}>
+        <Ionicons name="navigate" size={18} color={Colors.white} />
+        <WText style={styles.navigateBtnText}>נווט</WText>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -140,12 +196,15 @@ const ServiceCard: React.FC<{
             <View style={[styles.catBadge, { backgroundColor: cat.color + '18' }]}>
               <WText style={[styles.catBadgeText, { color: cat.color }]}>{cat.label}</WText>
             </View>
-            <WText style={styles.serviceDistance}>📍 {provider.distanceKm} ק"מ</WText>
+            <View style={styles.serviceDistanceRow}>
+              <Ionicons name="location-outline" size={11} color={Colors.gray} />
+              <WText style={styles.serviceDistance}>{provider.distanceKm} ק"מ</WText>
+            </View>
           </View>
 
           <View style={styles.serviceRatingRow}>
-            {'⭐'.repeat(stars).split('').map((s, i) => (
-              <Text key={i} style={styles.starSmall}>{s}</Text>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Ionicons key={i} name={i < stars ? 'star' : 'star-outline'} size={11} color={Colors.yellow} />
             ))}
             <WText style={styles.serviceRating}>{provider.rating}</WText>
             <WText style={styles.serviceReviews}>({provider.reviewCount})</WText>
@@ -156,7 +215,10 @@ const ServiceCard: React.FC<{
               ₪{provider.priceFrom}/{provider.pricePer === 'hour' ? 'שעה' : provider.pricePer === 'day' ? 'יום' : 'ביקור'}
             </WText>
             {provider.isAvailable
-              ? <View style={styles.availableBadge}><WText style={styles.availableText}>פנוי ✓</WText></View>
+              ? <View style={styles.availableBadge}>
+                  <Ionicons name="checkmark-circle" size={11} color={Colors.success} />
+                  <WText style={styles.availableText}>פנוי</WText>
+                </View>
               : <View style={styles.busyBadge}><WText style={styles.busyText}>תפוס</WText></View>
             }
           </View>
@@ -181,8 +243,9 @@ const ServiceCard: React.FC<{
         disabled={!provider.isAvailable}
         activeOpacity={0.8}
       >
+        {provider.isAvailable && <MaterialCommunityIcons name="paw" size={16} color={Colors.white} />}
         <WText style={[styles.bookBtnText, !provider.isAvailable && styles.bookBtnTextDisabled]}>
-          {provider.isAvailable ? 'הזמן עכשיו 🐾' : 'לא פנוי כעת'}
+          {provider.isAvailable ? 'הזמן עכשיו' : 'לא פנוי כעת'}
         </WText>
       </TouchableOpacity>
     </TouchableOpacity>
@@ -219,7 +282,7 @@ const ServiceDetailModal: React.FC<{
               <WText style={styles.svcHeroName}>{provider.ownerName}</WText>
               <WText style={styles.svcHeroCat}>{cat.label}</WText>
               <View style={styles.svcHeroRating}>
-                <WText style={styles.svcHeroStar}>★</WText>
+                <Ionicons name="star" size={13} color={Colors.yellow} />
                 <WText style={styles.svcHeroRatingText}>{provider.rating} ({provider.reviewCount} ביקורות)</WText>
               </View>
             </View>
@@ -237,7 +300,8 @@ const ServiceDetailModal: React.FC<{
             <View style={styles.svcBadgesWrap}>
               {provider.badges.map(b => (
                 <View key={b} style={[styles.badge, { backgroundColor: cat.color + '15', borderColor: cat.color + '30' }]}>
-                  <WText style={[styles.badgeText, { color: cat.color }]}>✓ {b}</WText>
+                  <Ionicons name="checkmark" size={12} color={cat.color} />
+                  <WText style={[styles.badgeText, { color: cat.color }]}>{b}</WText>
                 </View>
               ))}
             </View>
@@ -268,7 +332,7 @@ const ServiceDetailModal: React.FC<{
 
             {/* CTA */}
             <WButton
-              label={provider.isAvailable ? '🐾 הזמן עכשיו' : 'לא פנוי כעת'}
+              label={provider.isAvailable ? 'הזמן עכשיו' : 'לא פנוי כעת'}
               onPress={onBook}
               variant="primary"
               size="lg"
@@ -338,7 +402,7 @@ export const MapScreen: React.FC = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setSelectedProvider(null);
     Alert.alert(
-      'הזמנה נשלחה! 🐾',
+      'הזמנה נשלחה',
       `${provider.ownerName} יצור/תיצור קשר בקרוב לאישור הפרטים.\n\n${provider.name}`,
       [{ text: 'תודה רבה!', style: 'default' }],
     );
@@ -393,7 +457,7 @@ export const MapScreen: React.FC = () => {
             onPress={() => handleMarkerPress(place)}
             tracksViewChanges={false}
           >
-            <MarkerView emoji={place.emoji} category={place.category} />
+            <MarkerView category={place.category} />
           </Marker>
         ))}
       </MapView>
@@ -410,7 +474,7 @@ export const MapScreen: React.FC = () => {
             <CategoryChip
               key={cat.id}
               label={cat.label}
-              emoji={cat.emoji}
+              category={cat.id}
               isActive={activeCategory === cat.id}
               onPress={() => handleCategoryPress(cat.id as PlaceCategory)}
             />
@@ -438,7 +502,11 @@ export const MapScreen: React.FC = () => {
               onPress={() => handleSvcCategoryPress(cat.id as ServiceCategory)}
               activeOpacity={0.75}
             >
-              <Text style={styles.svcChipEmoji}>{cat.emoji}</Text>
+              <SvcIcon
+                category={cat.id}
+                size={14}
+                color={svcCategory === cat.id ? Colors.white : Colors.gray}
+              />
               <WText style={[styles.svcChipLabel, svcCategory === cat.id && styles.svcChipLabelActive]}>
                 {cat.label}
               </WText>
@@ -520,41 +588,52 @@ const styles = StyleSheet.create({
   filterBar: { position: 'absolute', top: 8, left: 16, right: 16 },
   filterContent: { flexDirection: 'row', gap: 8, paddingVertical: 2 },
   chip: {
-    flexDirection: 'row', alignItems: 'center',
+    flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingHorizontal: 16, paddingVertical: 8,
-    borderRadius: Radius.pill, ...Shadow.soft, marginRight: 4,
+    borderRadius: Radius.pill, ...Shadow.sm, marginRight: 4,
   },
   chipActive: { backgroundColor: Colors.terra },
   chipInactive: { backgroundColor: Colors.white },
-  chipEmoji: { fontSize: 14, marginRight: 4 },
   chipLabel: { fontFamily: FontFamily.semibold, fontSize: FontSize.sm },
   chipLabelActive: { color: Colors.white },
   chipLabelInactive: { color: Colors.gray },
 
   // Place bottom sheet
   sheetContent: { paddingHorizontal: Spacing.base, paddingBottom: Spacing.base, alignItems: 'center' },
-  placeEmoji: { fontSize: 56, textAlign: 'center', marginBottom: Spacing.sm },
+  placeIconCircle: {
+    width: 64, height: 64, borderRadius: 32,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: Spacing.sm,
+  },
   placeName: { marginBottom: Spacing.sm },
   categoryBadgeRow: { marginBottom: Spacing.sm },
-  ratingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xs, gap: 6 },
-  ratingStars: { fontSize: 14 },
-  address: { marginTop: 4, marginBottom: Spacing.sm },
-  openBadge: { paddingHorizontal: 14, paddingVertical: 5, borderRadius: Radius.pill, marginBottom: Spacing.sm },
+  ratingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xs, gap: 4 },
+  addressRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: Spacing.sm },
+  address: { marginTop: 0 },
+  openBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 14, paddingVertical: 5, borderRadius: Radius.pill, marginBottom: Spacing.sm,
+  },
   openBadgeOpen: { backgroundColor: 'rgba(76,175,125,0.10)' },
   openBadgeClosed: { backgroundColor: 'rgba(232,93,74,0.12)' },
   openTextOpen: { color: Colors.success, fontFamily: FontFamily.semibold, fontSize: FontSize.sm },
   openTextClosed: { color: Colors.error, fontFamily: FontFamily.semibold, fontSize: FontSize.sm },
-  phone: { marginBottom: Spacing.sm },
+  phoneRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: Spacing.sm },
   description: { marginBottom: Spacing.base, paddingHorizontal: Spacing.sm },
-  navigateBtn: { marginTop: Spacing.xs },
+  navigateBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm,
+    marginTop: Spacing.sm, backgroundColor: Colors.terra, borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md,
+    ...Shadow.md,
+  },
+  navigateBtnText: { fontFamily: FontFamily.bold, fontSize: FontSize.base, color: Colors.white },
 
   // Map markers
   markerContainer: {
     width: 36, height: 36, borderRadius: 18,
     justifyContent: 'center', alignItems: 'center',
-    ...Shadow.medium, borderWidth: 2, borderColor: Colors.white,
+    ...Shadow.md, borderWidth: 2, borderColor: Colors.white,
   },
-  markerEmoji: { fontSize: 18, lineHeight: 22 },
 
   // Services container
   servicesContainer: { flex: 1, backgroundColor: Colors.cream },
@@ -572,7 +651,6 @@ const styles = StyleSheet.create({
     borderWidth: 1.5, borderColor: Colors.border,
   },
   svcChipActive: { backgroundColor: Colors.forest, borderColor: Colors.forest },
-  svcChipEmoji: { fontSize: 14 },
   svcChipLabel: { fontFamily: FontFamily.semibold, fontSize: FontSize.sm, color: Colors.gray },
   svcChipLabelActive: { color: Colors.white },
   svcCount: {
@@ -587,7 +665,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderRadius: Radius.medium,
     padding: Spacing.base,
-    ...Shadow.soft,
+    ...Shadow.sm,
   },
   serviceCardInner: { flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.sm },
   serviceAvatar: { width: 68, height: 68, borderRadius: 34, backgroundColor: Colors.cream2 },
@@ -598,14 +676,14 @@ const styles = StyleSheet.create({
   serviceCatRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: 4, justifyContent: 'flex-end' },
   catBadge: { borderRadius: Radius.pill, paddingHorizontal: 8, paddingVertical: 2 },
   catBadgeText: { fontFamily: FontFamily.semibold, fontSize: FontSize.xs },
+  serviceDistanceRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   serviceDistance: { fontFamily: FontFamily.regular, fontSize: FontSize.xs, color: Colors.gray },
   serviceRatingRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 4, justifyContent: 'flex-end' },
-  starSmall: { fontSize: 11 },
   serviceRating: { fontFamily: FontFamily.bold, fontSize: FontSize.sm, color: Colors.text, marginLeft: 2 },
   serviceReviews: { fontFamily: FontFamily.regular, fontSize: FontSize.sm, color: Colors.gray },
   servicePriceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: Spacing.sm },
   servicePrice: { fontFamily: FontFamily.bold, fontSize: FontSize.sm, color: Colors.forest },
-  availableBadge: { backgroundColor: 'rgba(76,175,125,0.12)', borderRadius: Radius.pill, paddingHorizontal: 8, paddingVertical: 2 },
+  availableBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(76,175,125,0.12)', borderRadius: Radius.pill, paddingHorizontal: 8, paddingVertical: 2 },
   availableText: { fontFamily: FontFamily.semibold, fontSize: FontSize.xs, color: Colors.success },
   busyBadge: { backgroundColor: 'rgba(232,93,74,0.10)', borderRadius: Radius.pill, paddingHorizontal: 8, paddingVertical: 2 },
   busyText: { fontFamily: FontFamily.semibold, fontSize: FontSize.xs, color: Colors.error },
@@ -618,8 +696,9 @@ const styles = StyleSheet.create({
   },
   badgeText: { fontFamily: FontFamily.medium, fontSize: FontSize.xs, color: Colors.gray },
   bookBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm,
     backgroundColor: Colors.terra, borderRadius: Radius.medium,
-    paddingVertical: Spacing.md, alignItems: 'center',
+    paddingVertical: Spacing.md,
   },
   bookBtnDisabled: { backgroundColor: Colors.cream2 },
   bookBtnText: { fontFamily: FontFamily.bold, fontSize: FontSize.base, color: Colors.white },
@@ -645,7 +724,6 @@ const styles = StyleSheet.create({
   svcHeroName: { fontFamily: FontFamily.displayBlack, fontSize: FontSize['2xl'], color: Colors.white, textAlign: 'right', marginBottom: 2 },
   svcHeroCat: { fontFamily: FontFamily.medium, fontSize: FontSize.sm, color: 'rgba(255,255,255,0.8)', textAlign: 'right', marginBottom: Spacing.xs },
   svcHeroRating: { flexDirection: 'row', alignItems: 'center', gap: 4, justifyContent: 'flex-end' },
-  svcHeroStar: { fontSize: 14, color: Colors.yellow },
   svcHeroRatingText: { fontFamily: FontFamily.semibold, fontSize: FontSize.sm, color: 'rgba(255,255,255,0.9)' },
   svcHeroVerified: {
     position: 'absolute', top: Spacing.lg, left: Spacing.xl,
