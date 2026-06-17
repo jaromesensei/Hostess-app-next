@@ -5,6 +5,8 @@ import {
   KeyboardAvoidingView,
   ScrollView,
   TouchableOpacity,
+  TouchableWithoutFeedback,
+  Keyboard,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -27,23 +29,23 @@ type NavProp = NativeStackNavigationProp<OnboardingStackParamList>;
 
 type DogSize = 'xs' | 's' | 'm' | 'l' | 'xl';
 
-const SIZES: { key: DogSize; label: string; emoji: string }[] = [
-  { key: 'xs', label: 'XS', emoji: '🐭' },
-  { key: 's', label: 'S', emoji: '🐩' },
-  { key: 'm', label: 'M', emoji: '🐕' },
-  { key: 'l', label: 'L', emoji: '🦮' },
-  { key: 'xl', label: 'XL', emoji: '🐻' },
+const SIZES: { key: DogSize; label: string; sub: string }[] = [
+  { key: 'xs', label: 'XS', sub: 'עד 5 ק"מ' },
+  { key: 's',  label: 'S',  sub: '5–10'    },
+  { key: 'm',  label: 'M',  sub: '10–20'   },
+  { key: 'l',  label: 'L',  sub: '20–35'   },
+  { key: 'xl', label: 'XL', sub: '35+'     },
 ];
 
-const FUR_COLORS = [
-  { label: 'שחור', emoji: '⬛' },
-  { label: 'לבן', emoji: '⬜' },
-  { label: 'חום', emoji: '🟫' },
-  { label: 'זהוב', emoji: '🟡' },
-  { label: 'אפור', emoji: '🩶' },
-  { label: 'שלוש-צבעים', emoji: '🎨' },
-  { label: 'מנוקד', emoji: '🔘' },
-  { label: 'אחר', emoji: '➕' },
+const FUR_COLORS: { label: string; color: string }[] = [
+  { label: 'שחור',        color: '#1A1A1A' },
+  { label: 'לבן',         color: '#F5F5F0' },
+  { label: 'חום',         color: '#8B5E3C' },
+  { label: 'זהוב',        color: '#D4A843' },
+  { label: 'אפור',        color: '#9E9E9E' },
+  { label: 'שלוש-צבעים',  color: '#6C3483' },
+  { label: 'מנוקד',       color: '#2E86C1' },
+  { label: 'אחר',         color: Colors.terra },
 ];
 
 export const OnboardingStep3: React.FC = () => {
@@ -74,13 +76,9 @@ export const OnboardingStep3: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom'] as any}>
-      {/* Back button (forest header) */}
       <View style={styles.topBar}>
         <TouchableOpacity
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            navigation.goBack();
-          }}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); navigation.goBack(); }}
           style={styles.backBtn}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
@@ -88,111 +86,94 @@ export const OnboardingStep3: React.FC = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Progress bar */}
       <View style={styles.progressWrap}>
         <ProgressBar current={3} total={5} />
       </View>
 
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView
           style={styles.flex}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          onScrollBeginDrag={Keyboard.dismiss}
         >
-          {/* Forest header */}
-          <View style={styles.header}>
-            <WText style={styles.headline} color={Colors.white}>
-              קצת יותר על {dogName} 🐶
-            </WText>
-            <WText style={styles.subtext} color="rgba(255,255,255,0.8)">
-              נשלים את פרופיל הכלב
-            </WText>
-          </View>
-
-          {/* Cream form card */}
-          <View style={styles.formSection}>
-            {/* Neutered toggle */}
-            <View style={styles.section}>
-              <View style={styles.toggleRow}>
-                <WToggle value={isNeutered} onToggle={setIsNeutered} />
-                <WText variant="bodyMedium" color={Colors.text} style={styles.toggleLabel}>
-                  {isFemale ? 'מעוקרת?' : 'מסורס?'}
-                </WText>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View>
+              {/* Forest header */}
+              <View style={styles.header}>
+                <WText style={styles.headline} color={Colors.white}>קצת יותר על {dogName}</WText>
+                <WText style={styles.subtext} color="rgba(255,255,255,0.8)">נשלים את פרופיל הכלב</WText>
               </View>
-            </View>
 
-            {/* Size selector */}
-            <View style={styles.section}>
-              <WText variant="captionMedium" color={Colors.gray} style={styles.sectionLabel}>
-                גודל
-              </WText>
-              <View style={styles.sizeRow}>
-                {SIZES.map((s) => (
-                  <TouchableOpacity
-                    key={s.key}
-                    style={[styles.sizeCard, size === s.key && styles.sizeCardSelected]}
-                    onPress={async () => {
-                      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setSize(s.key);
-                    }}
-                    activeOpacity={0.75}
-                  >
-                    <WText style={styles.sizeEmoji}>{s.emoji}</WText>
-                    <WText
-                      variant="label"
-                      color={size === s.key ? Colors.terra : Colors.gray}
-                      style={styles.sizeLabel}
-                    >
-                      {s.label}
+              {/* Cream form card */}
+              <View style={styles.formSection}>
+                {/* Neutered toggle */}
+                <View style={styles.section}>
+                  <View style={styles.toggleRow}>
+                    <WToggle value={isNeutered} onToggle={setIsNeutered} />
+                    <WText variant="bodyMedium" color={Colors.text} style={styles.toggleLabel}>
+                      {isFemale ? 'מעוקרת?' : 'מסורס?'}
                     </WText>
-                  </TouchableOpacity>
-                ))}
+                  </View>
+                </View>
+
+                {/* Size selector */}
+                <View style={styles.section}>
+                  <WText variant="captionMedium" color={Colors.gray} style={styles.sectionLabel}>גודל</WText>
+                  <View style={styles.sizeRow}>
+                    {SIZES.map((s) => (
+                      <TouchableOpacity
+                        key={s.key}
+                        style={[styles.sizeCard, size === s.key && styles.sizeCardSelected]}
+                        onPress={async () => { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSize(s.key); }}
+                        activeOpacity={0.75}
+                      >
+                        <WText style={[styles.sizeLabel, size === s.key && styles.sizeLabelSelected]}>{s.label}</WText>
+                        <WText style={[styles.sizeSub, size === s.key && styles.sizeSubSelected]}>{s.sub}</WText>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                {/* Weight */}
+                <View style={styles.section}>
+                  <WInput
+                    label="משקל"
+                    placeholder="0.0"
+                    value={weight}
+                    onChangeText={setWeight}
+                    keyboardType="decimal-pad"
+                    returnKeyType="done"
+                    onSubmitEditing={Keyboard.dismiss}
+                    suffix={<WText variant="bodyMedium" color={Colors.gray}>ק״ג</WText>}
+                  />
+                </View>
+
+                {/* Fur color */}
+                <View style={styles.section}>
+                  <WText variant="captionMedium" color={Colors.gray} style={styles.sectionLabel}>צבע פרווה</WText>
+                  <View style={styles.furRow}>
+                    {FUR_COLORS.map((fc) => {
+                      const isSelected = furColor === fc.label;
+                      return (
+                        <TouchableOpacity
+                          key={fc.label}
+                          style={[styles.furChip, isSelected && styles.furChipSelected]}
+                          onPress={async () => { await Haptics.selectionAsync(); setFurColor(isSelected ? '' : fc.label); }}
+                          activeOpacity={0.75}
+                        >
+                          <View style={[styles.furSwatch, { backgroundColor: fc.color }, isSelected && styles.furSwatchSelected]} />
+                          <WText style={[styles.furLabel, isSelected && styles.furLabelSelected]}>{fc.label}</WText>
+                          {isSelected && <Ionicons name="checkmark" size={12} color={Colors.terra} />}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
               </View>
             </View>
-
-            {/* Weight */}
-            <View style={styles.section}>
-              <WInput
-                label="משקל"
-                placeholder="0.0"
-                value={weight}
-                onChangeText={setWeight}
-                keyboardType="decimal-pad"
-                returnKeyType="done"
-                suffix={
-                  <WText variant="bodyMedium" color={Colors.gray}>
-                    ק״ג
-                  </WText>
-                }
-              />
-            </View>
-
-            {/* Fur color */}
-            <View style={styles.section}>
-              <WText variant="captionMedium" color={Colors.gray} style={styles.sectionLabel}>
-                צבע פרווה
-              </WText>
-              <View style={styles.furRow}>
-                {FUR_COLORS.map((fc) => {
-                  const fullLabel = `${fc.emoji} ${fc.label}`;
-                  const isSelected = furColor === fc.label;
-                  return (
-                    <WTag
-                      key={fc.label}
-                      label={fullLabel}
-                      selected={isSelected}
-                      onPress={() => setFurColor(isSelected ? '' : fc.label)}
-                      style={styles.furTag}
-                    />
-                  );
-                })}
-              </View>
-            </View>
-          </View>
+          </TouchableWithoutFeedback>
         </ScrollView>
 
         {/* Sticky CTA */}
@@ -294,34 +275,65 @@ const styles = StyleSheet.create({
   },
   sizeCard: {
     flex: 1,
-    aspectRatio: 0.85,
+    paddingVertical: Spacing.md,
     borderRadius: Radius.medium,
     backgroundColor: Colors.cream2,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: 'transparent',
-    ...Shadow.soft,
+    ...Shadow.sm,
+    gap: 2,
   },
   sizeCardSelected: {
     borderColor: Colors.terra,
     backgroundColor: 'rgba(232,115,74,0.08)',
   },
-  sizeEmoji: {
-    fontSize: 24,
-    marginBottom: 4,
-  },
   sizeLabel: {
+    fontFamily: FontFamily.bold,
+    fontSize: FontSize.base,
+    color: Colors.gray,
     textAlign: 'center',
   },
+  sizeLabelSelected: { color: Colors.terra },
+  sizeSub: {
+    fontFamily: FontFamily.regular,
+    fontSize: 9,
+    color: Colors.gray,
+    textAlign: 'center',
+  },
+  sizeSubSelected: { color: Colors.terra },
   furRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Spacing.sm,
   },
-  furTag: {
-    marginBottom: 0,
+  furChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 8,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.cream2,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
   },
+  furChipSelected: {
+    borderColor: Colors.terra,
+    backgroundColor: 'rgba(232,115,74,0.06)',
+  },
+  furSwatch: {
+    width: 16, height: 16, borderRadius: 8,
+    borderWidth: 1, borderColor: 'rgba(0,0,0,0.15)',
+  },
+  furSwatchSelected: { borderColor: Colors.terra },
+  furLabel: {
+    fontFamily: FontFamily.medium,
+    fontSize: FontSize.sm,
+    color: Colors.text,
+  },
+  furLabelSelected: { color: Colors.terra },
   ctaWrap: {
     paddingHorizontal: Spacing.xl,
     paddingBottom: Spacing.lg,

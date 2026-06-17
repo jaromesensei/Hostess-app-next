@@ -12,6 +12,7 @@ import * as Haptics from 'expo-haptics';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { Colors, FontFamily, FontSize, Spacing, Radius, Shadow } from '@/theme';
 import { WText } from '@/components/ui/Text';
@@ -29,7 +30,9 @@ type LookingForValue = 'friends' | 'breeding' | 'walks';
 
 interface LookingForCard {
   value: LookingForValue;
-  emoji: string;
+  icon: string;
+  lib: 'ion' | 'mci';
+  color: string;
   title: string;
   description: string;
 }
@@ -37,19 +40,19 @@ interface LookingForCard {
 const LOOKING_FOR_OPTIONS: LookingForCard[] = [
   {
     value: 'friends',
-    emoji: '🐾',
+    icon: 'paw', lib: 'mci', color: Colors.terra,
     title: 'חברים לטיולים',
     description: 'לפגוש כלבים ולצאת ביחד',
   },
   {
     value: 'breeding',
-    emoji: '❤️',
+    icon: 'heart', lib: 'ion', color: '#E91E8C',
     title: 'זיווג אחראי',
     description: 'רק עם בדיקות בריאות מאושרות',
   },
   {
     value: 'walks',
-    emoji: '🏃',
+    icon: 'walk', lib: 'mci', color: Colors.forest,
     title: 'שותפים לריצה',
     description: 'בעלים שאוהבים לזוז',
   },
@@ -137,12 +140,8 @@ export const OnboardingStep5: React.FC = () => {
         >
           {/* Forest header */}
           <View style={styles.header}>
-            <WText style={styles.headline} color={Colors.white}>
-              מה {dogName} מחפש? 🔍
-            </WText>
-            <WText style={styles.subtext} color="rgba(255,255,255,0.8)">
-              נמצא את ההתאמה המושלמת
-            </WText>
+            <WText style={styles.headline} color={Colors.white}>מה {dogName} מחפש?</WText>
+            <WText style={styles.subtext} color="rgba(255,255,255,0.8)">נמצא את ההתאמה המושלמת</WText>
           </View>
 
           {/* Cream form card */}
@@ -176,7 +175,12 @@ export const OnboardingStep5: React.FC = () => {
                           {option.description}
                         </WText>
                       </View>
-                      <WText style={styles.lookingForEmoji}>{option.emoji}</WText>
+                      <View style={[styles.lookingForIconCircle, { backgroundColor: option.color + '18' }]}>
+                        {option.lib === 'mci'
+                          ? <MaterialCommunityIcons name={option.icon as any} size={26} color={option.color} />
+                          : <Ionicons name={option.icon as any} size={26} color={option.color} />
+                        }
+                      </View>
                     </View>
                     {isSelected && (
                       <View style={styles.checkmark}>
@@ -238,7 +242,7 @@ export const OnboardingStep5: React.FC = () => {
         {/* Sticky CTA */}
         <View style={styles.ctaWrap}>
           <WButton
-            label="בואו נתחיל! 🐾"
+            label="בואו נתחיל"
             onPress={handleStart}
             loading={loading}
             disabled={loading}
@@ -349,8 +353,9 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     writingDirection: 'rtl',
   },
-  lookingForEmoji: {
-    fontSize: 32,
+  lookingForIconCircle: {
+    width: 52, height: 52, borderRadius: 26,
+    alignItems: 'center', justifyContent: 'center',
   },
   checkmark: {
     position: 'absolute',

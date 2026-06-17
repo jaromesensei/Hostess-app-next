@@ -6,12 +6,14 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { Colors, FontFamily, FontSize, Spacing, Radius, Shadow } from '@/theme';
 import { WText } from '@/components/ui/Text';
@@ -25,26 +27,26 @@ import { OnboardingStackParamList } from '@/types';
 type NavProp = NativeStackNavigationProp<OnboardingStackParamList>;
 
 const ENERGY_LABELS: Record<number, string> = {
-  1: '🛋️ רגוע מאוד',
-  2: '😐',
-  3: '⚡ מאוזן',
-  4: '🔥',
-  5: '🚀 סופר אנרגטי',
+  1: 'רגוע מאוד',
+  2: 'רגוע',
+  3: 'מאוזן',
+  4: 'אנרגטי',
+  5: 'סופר אנרגטי',
 };
 
 const PERSONALITY_TAGS = [
-  '😊 ידידותי',
-  '⚡ אנרגטי',
-  '😌 רגוע',
-  '🎾 שובבי',
-  '🛡️ מגן',
-  '🙈 ביישן',
-  '🧠 חכם',
-  '🤗 חברותי',
-  '🎵 מוצלח',
-  '🌊 אוהב מים',
-  '🏔️ הרפתקן',
-  '👶 אוהב ילדים',
+  'ידידותי',
+  'אנרגטי',
+  'רגוע',
+  'שובבי',
+  'מגן',
+  'ביישן',
+  'חכם',
+  'חברותי',
+  'אוהב מים',
+  'הרפתקן',
+  'אוהב ילדים',
+  'נאמן',
 ];
 
 const ACTIVITIES = [
@@ -140,12 +142,8 @@ export const OnboardingStep4: React.FC = () => {
         >
           {/* Forest header */}
           <View style={styles.header}>
-            <WText style={styles.headline} color={Colors.white}>
-              האישיות של {dogName} ✨
-            </WText>
-            <WText style={styles.subtext} color="rgba(255,255,255,0.8)">
-              מה מיוחד בו?
-            </WText>
+            <WText style={styles.headline} color={Colors.white}>האישיות של {dogName}</WText>
+            <WText style={styles.subtext} color="rgba(255,255,255,0.8)">מה מיוחד בו?</WText>
           </View>
 
           {/* Cream form card */}
@@ -226,23 +224,20 @@ export const OnboardingStep4: React.FC = () => {
               <View style={styles.goodWithCard}>
                 <View style={styles.goodWithRow}>
                   <WToggle value={goodWithDogs} onToggle={setGoodWithDogs} />
-                  <WText variant="bodyMedium" color={Colors.text} style={styles.goodWithLabel}>
-                    🐕 כלבים אחרים
-                  </WText>
+                  <MaterialCommunityIcons name="dog" size={18} color={Colors.forest} style={styles.goodWithIcon} />
+                  <WText variant="bodyMedium" color={Colors.text} style={styles.goodWithLabel}>כלבים אחרים</WText>
                 </View>
                 <View style={styles.divider} />
                 <View style={styles.goodWithRow}>
                   <WToggle value={goodWithKids} onToggle={setGoodWithKids} />
-                  <WText variant="bodyMedium" color={Colors.text} style={styles.goodWithLabel}>
-                    👶 ילדים
-                  </WText>
+                  <Ionicons name="people-outline" size={18} color={Colors.forest} style={styles.goodWithIcon} />
+                  <WText variant="bodyMedium" color={Colors.text} style={styles.goodWithLabel}>ילדים</WText>
                 </View>
                 <View style={styles.divider} />
                 <View style={styles.goodWithRow}>
                   <WToggle value={goodWithCats} onToggle={setGoodWithCats} />
-                  <WText variant="bodyMedium" color={Colors.text} style={styles.goodWithLabel}>
-                    🐱 חתולים
-                  </WText>
+                  <MaterialCommunityIcons name="cat" size={18} color={Colors.forest} style={styles.goodWithIcon} />
+                  <WText variant="bodyMedium" color={Colors.text} style={styles.goodWithLabel}>חתולים</WText>
                 </View>
               </View>
             </View>
@@ -379,10 +374,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.base,
     paddingVertical: Spacing.base,
   },
+  goodWithIcon: { marginRight: Spacing.sm },
   goodWithLabel: {
-    marginRight: Spacing.md,
+    marginRight: Spacing.sm,
     textAlign: 'right',
     writingDirection: 'rtl',
+    flex: 1,
   },
   divider: {
     height: 1,

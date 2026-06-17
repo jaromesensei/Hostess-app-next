@@ -85,7 +85,7 @@ export const OnboardingStep1: React.FC = () => {
             {/* Forest header */}
             <View style={styles.header}>
               <WText style={styles.headline} color={Colors.white}>
-                קצת עליך 👋
+                קצת עליך
               </WText>
               <WText style={styles.subtext} color="rgba(255,255,255,0.8)">
                 כדי שנוכל להתאים את החוויה לך

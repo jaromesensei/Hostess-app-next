@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -18,6 +18,7 @@ import * as Haptics from 'expo-haptics';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { Colors, FontFamily, FontSize, Spacing, Radius, Shadow } from '@/theme';
 import { WText } from '@/components/ui/Text';
@@ -32,23 +33,41 @@ import { generateId } from '@/services/storage';
 
 type NavProp = NativeStackNavigationProp<OnboardingStackParamList>;
 
+// Auto-format DD/MM/YYYY as user types
+function formatDateInput(raw: string, prev: string): string {
+  const digits = raw.replace(/\D/g, '');
+  const prevDigits = prev.replace(/\D/g, '');
+  // If deleting, don't re-add slashes
+  if (digits.length < prevDigits.length) {
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+    return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4, 8)}`;
+  }
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4, 8)}`;
+}
+
 export const OnboardingStep2: React.FC = () => {
   const navigation = useNavigation<NavProp>();
   const { state, setDog, addAnotherDog } = useApp();
   const isAdding = state.isAddingAnotherDog;
+  const scrollRef = useRef<ScrollView>(null);
 
   const [dogPhoto, setDogPhoto] = useState<string | null>(null);
   const [dogName, setDogName] = useState('');
   const [breedInput, setBreedInput] = useState('');
   const [breedSelected, setBreedSelected] = useState('');
   const [breedResults, setBreedResults] = useState<string[]>([]);
-  const [breedFocused, setBreedFocused] = useState(false);
+  const [showBreedDropdown, setShowBreedDropdown] = useState(false);
   const [birthDateStr, setBirthDateStr] = useState('');
   const [gender, setGender] = useState<'male' | 'female' | null>(null);
 
   const [photoError, setPhotoError] = useState('');
   const [nameError, setNameError] = useState('');
   const [breedError, setBreedError] = useState('');
+  const [genderError, setGenderError] = useState('');
+  const [dateError, setDateError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const pickDogPhoto = async () => {
@@ -68,33 +87,55 @@ export const OnboardingStep2: React.FC = () => {
   const handleBreedChange = useCallback((text: string) => {
     setBreedInput(text);
     setBreedSelected('');
+    setBreedError('');
     const results = searchBreeds(text);
     const mixed = 'מעורב / לא יודע';
-    const filtered = results.filter(r => r !== mixed).slice(0, 7);
+    const filtered = results.filter(r => r !== mixed).slice(0, 6);
     setBreedResults([...filtered, mixed]);
+    setShowBreedDropdown(true);
   }, []);
+
+  const handleBreedFocus = useCallback(() => {
+    if (!breedInput.trim()) {
+      const results = searchBreeds('');
+      const mixed = 'מעורב / לא יודע';
+      const filtered = results.filter(r => r !== mixed).slice(0, 6);
+      setBreedResults([...filtered, mixed]);
+    }
+    setShowBreedDropdown(true);
+    // Scroll down so dropdown is visible
+    setTimeout(() => scrollRef.current?.scrollTo({ y: 200, animated: true }), 300);
+  }, [breedInput]);
 
   const handleBreedSelect = async (breed: string) => {
     await Haptics.selectionAsync();
     setBreedInput(breed);
     setBreedSelected(breed);
     setBreedResults([]);
-    setBreedFocused(false);
+    setShowBreedDropdown(false);
     setBreedError('');
     Keyboard.dismiss();
   };
 
+  const handleDateChange = useCallback((text: string) => {
+    const formatted = formatDateInput(text, birthDateStr);
+    setBirthDateStr(formatted);
+    setDateError('');
+    // Validate when fully entered
+    if (formatted.length === 10) {
+      const parsed = parseBirthDate(formatted);
+      if (!parsed) setDateError('תאריך לא תקין');
+    }
+  }, [birthDateStr]);
+
   const parseBirthDate = (str: string): string | null => {
-    const dmyMatch = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    const dmyMatch = str.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
     if (dmyMatch) {
       const [, d, m, y] = dmyMatch;
-      const date = new Date(`${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`);
-      if (!isNaN(date.getTime())) return date.toISOString().split('T')[0];
-    }
-    const isoMatch = str.match(/^\d{4}-\d{2}-\d{2}$/);
-    if (isoMatch) {
-      const date = new Date(str);
-      if (!isNaN(date.getTime())) return str;
+      const date = new Date(`${y}-${m}-${d}`);
+      if (!isNaN(date.getTime()) && date <= new Date()) {
+        return date.toISOString().split('T')[0];
+      }
     }
     return null;
   };
@@ -104,18 +145,11 @@ export const OnboardingStep2: React.FC = () => {
 
   const handleContinue = async () => {
     let hasError = false;
-    if (!dogPhoto) {
-      setPhotoError('אנא הוסף תמונה של הכלב');
-      hasError = true;
-    }
-    if (!dogName.trim()) {
-      setNameError('אנא הכנס את שם הכלב');
-      hasError = true;
-    }
-    if (!breedSelected) {
-      setBreedError('אנא בחר גזע');
-      hasError = true;
-    }
+    if (!dogPhoto) { setPhotoError('אנא הוסף תמונה של הכלב'); hasError = true; }
+    if (!dogName.trim()) { setNameError('אנא הכנס את שם הכלב'); hasError = true; }
+    if (!breedSelected) { setBreedError('אנא בחר גזע מהרשימה'); hasError = true; }
+    if (!gender) { setGenderError('אנא בחר מין'); hasError = true; }
+    if (birthDateStr && !parsedBirthDate) { setDateError('תאריך לא תקין'); hasError = true; }
     if (hasError) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
@@ -130,43 +164,34 @@ export const OnboardingStep2: React.FC = () => {
       name: dogName.trim(),
       breed: breedSelected,
       birthDate: parsedBirthDate ?? new Date().toISOString().split('T')[0],
-      gender: gender ?? 'male',
+      gender: gender!,
       isNeutered: false,
-      size: 'm',
+      size: 'm' as const,
       weight: 0,
       furColor: '',
       photos: dogPhoto ? [dogPhoto] : [],
       personality: [],
-      energyLevel: 3,
+      energyLevel: 3 as const,
       goodWithDogs: true,
       goodWithKids: true,
       goodWithCats: false,
-      trained: 'none',
+      trained: 'none' as const,
       activities: [],
-      lookingFor: [],
+      lookingFor: [] as any,
       searchRadius: 10,
       bio: '',
     };
 
-    if (isAdding) {
-      addAnotherDog(dogPayload);
-    } else {
-      setDog(dogPayload);
-    }
-
+    if (isAdding) { addAnotherDog(dogPayload); } else { setDog(dogPayload); }
     setLoading(false);
     navigation.navigate('Step3');
   };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom'] as any}>
-      {/* Back button (forest header) */}
       <View style={styles.topBar}>
         <TouchableOpacity
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            navigation.goBack();
-          }}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); navigation.goBack(); }}
           style={styles.backBtn}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
@@ -174,207 +199,173 @@ export const OnboardingStep2: React.FC = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Progress bar */}
       <View style={styles.progressWrap}>
         <ProgressBar current={2} total={5} />
       </View>
 
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <ScrollView
-            style={styles.flex}
-            contentContainerStyle={styles.scrollContent}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
-            {/* Forest header */}
-            <View style={styles.header}>
-              <WText style={styles.headline} color={Colors.white}>
-                ספר לנו על הכלב שלך 🐾
-              </WText>
-              <WText style={styles.subtext} color="rgba(255,255,255,0.8)">
-                כמה פרטים בסיסיים
-              </WText>
-            </View>
-
-            {/* Cream form card */}
-            <View style={styles.formSection}>
-              {/* Dog photo picker */}
-              <View style={styles.photoRow}>
-                <TouchableOpacity
-                  onPress={pickDogPhoto}
-                  style={styles.dogPhotoCircle}
-                  activeOpacity={0.8}
-                >
-                  {dogPhoto ? (
-                    <Image source={{ uri: dogPhoto }} style={styles.dogPhotoImage} />
-                  ) : (
-                    <WText style={styles.dogPhotoPlaceholder}>🐾</WText>
-                  )}
-                  <View style={styles.cameraOverlay}>
-                    <Ionicons name="camera" size={16} color={Colors.white} />
-                  </View>
-                </TouchableOpacity>
-                {photoError ? (
-                  <WText variant="caption" color={Colors.error} style={styles.photoError}>
-                    {photoError}
-                  </WText>
-                ) : null}
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <ScrollView
+          ref={scrollRef}
+          style={styles.flex}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="always"
+          showsVerticalScrollIndicator={false}
+          onScrollBeginDrag={Keyboard.dismiss}
+        >
+          <TouchableWithoutFeedback onPress={() => { Keyboard.dismiss(); setShowBreedDropdown(false); }}>
+            <View>
+              {/* Forest header */}
+              <View style={styles.header}>
+                <WText style={styles.headline} color={Colors.white}>ספר לנו על הכלב שלך</WText>
+                <WText style={styles.subtext} color="rgba(255,255,255,0.8)">כמה פרטים בסיסיים</WText>
               </View>
 
-              <View style={styles.formWrap}>
-                {/* Dog name */}
-                <WInput
-                  label="שם הכלב"
-                  placeholder="מה שם הכלב שלך?"
-                  value={dogName}
-                  onChangeText={(t) => {
-                    setDogName(t);
-                    if (t.trim()) setNameError('');
-                  }}
-                  error={nameError}
-                  returnKeyType="next"
-                  autoCapitalize="words"
-                />
+              {/* Cream form card */}
+              <View style={styles.formSection}>
+                {/* Dog photo */}
+                <View style={styles.photoRow}>
+                  <TouchableOpacity onPress={pickDogPhoto} style={styles.dogPhotoCircle} activeOpacity={0.8}>
+                    {dogPhoto ? (
+                      <Image source={{ uri: dogPhoto }} style={styles.dogPhotoImage} />
+                    ) : (
+                      <MaterialCommunityIcons name="paw" size={48} color={Colors.cream2} />
+                    )}
+                    <View style={styles.cameraOverlay}>
+                      <Ionicons name="camera" size={16} color={Colors.white} />
+                    </View>
+                  </TouchableOpacity>
+                  {photoError ? (
+                    <WText variant="caption" color={Colors.error} style={styles.photoError}>{photoError}</WText>
+                  ) : (
+                    <WText variant="caption" color={Colors.gray} style={styles.photoError}>הוסף תמונה של הכלב</WText>
+                  )}
+                </View>
 
-                <View style={styles.gap} />
+                <View style={styles.formWrap}>
+                  {/* Dog name */}
+                  <WInput
+                    label="שם הכלב"
+                    placeholder="מה שם הכלב שלך?"
+                    value={dogName}
+                    onChangeText={t => { setDogName(t); if (t.trim()) setNameError(''); }}
+                    error={nameError}
+                    returnKeyType="next"
+                    autoCapitalize="words"
+                    onSubmitEditing={Keyboard.dismiss}
+                  />
+                  <View style={styles.gap} />
 
-                {/* Breed search */}
-                <View style={styles.breedWrap}>
-                  <WText variant="captionMedium" color={Colors.gray} style={styles.inputLabel}>
-                    גזע
-                  </WText>
-                  <View
-                    style={[
+                  {/* Breed search — zIndex high so dropdown floats above siblings */}
+                  <View style={styles.breedWrap}>
+                    <WText variant="captionMedium" color={Colors.gray} style={styles.inputLabel}>גזע</WText>
+                    <View style={[
                       styles.breedInputContainer,
-                      breedFocused && styles.breedInputFocused,
+                      showBreedDropdown && styles.breedInputFocused,
                       breedError ? styles.breedInputError : undefined,
-                    ]}
-                  >
-                    <TextInput
-                      style={styles.breedTextInput}
-                      placeholder="חפש גזע..."
-                      placeholderTextColor={Colors.placeholder}
-                      value={breedInput}
-                      onChangeText={handleBreedChange}
-                      onFocus={() => {
-                        setBreedFocused(true);
-                        if (!breedInput.trim()) {
-                          const results = searchBreeds('');
-                          const mixed = 'מעורב / לא יודע';
-                          const filtered = results.filter(r => r !== mixed).slice(0, 7);
-                          setBreedResults([...filtered, mixed]);
-                        }
-                      }}
-                      onBlur={() => {
-                        setTimeout(() => setBreedFocused(false), 200);
-                      }}
-                      textAlign="right"
-                      returnKeyType="done"
-                    />
-                    {breedSelected ? (
-                      <Ionicons name="checkmark-circle" size={20} color={Colors.success} />
-                    ) : null}
-                  </View>
-                  {breedError ? (
-                    <WText variant="caption" color={Colors.error} style={styles.fieldError}>
-                      {breedError}
-                    </WText>
-                  ) : null}
+                    ]}>
+                      <TextInput
+                        style={styles.breedTextInput}
+                        placeholder="חפש גזע..."
+                        placeholderTextColor={Colors.gray}
+                        value={breedInput}
+                        onChangeText={handleBreedChange}
+                        onFocus={handleBreedFocus}
+                        onBlur={() => setTimeout(() => setShowBreedDropdown(false), 200)}
+                        textAlign="right"
+                        returnKeyType="done"
+                        onSubmitEditing={() => setShowBreedDropdown(false)}
+                      />
+                      {breedSelected
+                        ? <Ionicons name="checkmark-circle" size={20} color={Colors.success} />
+                        : <Ionicons name="search" size={16} color={Colors.gray} />
+                      }
+                    </View>
+                    {breedError
+                      ? <WText variant="caption" color={Colors.error} style={styles.fieldError}>{breedError}</WText>
+                      : null
+                    }
 
-                  {/* Breed dropdown */}
-                  {breedFocused && breedResults.length > 0 && (
-                    <View style={styles.breedDropdown}>
-                      <FlatList
-                        data={breedResults}
-                        keyExtractor={(item) => item}
-                        keyboardShouldPersistTaps="always"
-                        scrollEnabled={false}
-                        renderItem={({ item }) => (
+                    {/* Dropdown — NOT absolutely positioned; rendered inline to avoid clipping */}
+                    {showBreedDropdown && breedResults.length > 0 && (
+                      <View style={styles.breedDropdown}>
+                        {breedResults.map((item, index) => (
                           <TouchableOpacity
-                            style={styles.breedItem}
+                            key={item}
+                            style={[styles.breedItem, index < breedResults.length - 1 && styles.breedItemBorder]}
                             onPress={() => handleBreedSelect(item)}
                             activeOpacity={0.7}
                           >
-                            <WText variant="bodyMedium" color={Colors.text}>
-                              {item}
-                            </WText>
+                            <Ionicons
+                              name={item === 'מעורב / לא יודע' ? 'help-circle-outline' : 'paw-outline'}
+                              size={14}
+                              color={Colors.terra}
+                              style={{ marginLeft: Spacing.sm }}
+                            />
+                            <WText variant="bodyMedium" color={Colors.text}>{item}</WText>
                           </TouchableOpacity>
-                        )}
-                        ItemSeparatorComponent={() => <View style={styles.breedSeparator} />}
-                      />
-                    </View>
-                  )}
-                </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
 
-                <View style={styles.gap} />
+                  <View style={styles.gap} />
 
-                {/* Birth date */}
-                <WInput
-                  label="תאריך לידה"
-                  placeholder="DD/MM/YYYY"
-                  value={birthDateStr}
-                  onChangeText={setBirthDateStr}
-                  returnKeyType="done"
-                  keyboardType="numbers-and-punctuation"
-                />
-                {ageString ? (
-                  <WText variant="caption" color={Colors.terra} style={styles.ageHint}>
-                    גיל: {ageString}
-                  </WText>
-                ) : null}
+                  {/* Birth date — auto-formatted */}
+                  <View>
+                    <WInput
+                      label="תאריך לידה"
+                      placeholder="DD/MM/YYYY"
+                      value={birthDateStr}
+                      onChangeText={handleDateChange}
+                      returnKeyType="done"
+                      keyboardType="number-pad"
+                      maxLength={10}
+                      onSubmitEditing={Keyboard.dismiss}
+                      error={dateError}
+                    />
+                    {ageString && !dateError ? (
+                      <View style={styles.ageHintRow}>
+                        <Ionicons name="gift-outline" size={13} color={Colors.terra} />
+                        <WText variant="caption" color={Colors.terra}>גיל: {ageString}</WText>
+                      </View>
+                    ) : null}
+                  </View>
 
-                <View style={styles.gap} />
+                  <View style={styles.gap} />
 
-                {/* Gender selector */}
-                <WText variant="captionMedium" color={Colors.gray} style={styles.inputLabel}>
-                  מין
-                </WText>
-                <View style={styles.genderRow}>
-                  <TouchableOpacity
-                    style={[styles.genderChip, gender === 'male' && styles.genderChipSelected]}
-                    onPress={async () => {
-                      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setGender('male');
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <WText style={[styles.genderChipText, gender === 'male' && styles.genderChipTextSelected]}>
-                      ♂ זכר
-                    </WText>
-                  </TouchableOpacity>
-
-                  <View style={{ width: Spacing.md }} />
-
-                  <TouchableOpacity
-                    style={[styles.genderChip, gender === 'female' && styles.genderChipSelected]}
-                    onPress={async () => {
-                      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setGender('female');
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <WText style={[styles.genderChipText, gender === 'female' && styles.genderChipTextSelected]}>
-                      ♀ נקבה
-                    </WText>
-                  </TouchableOpacity>
+                  {/* Gender selector */}
+                  <WText variant="captionMedium" color={Colors.gray} style={styles.inputLabel}>מין</WText>
+                  <View style={styles.genderRow}>
+                    <TouchableOpacity
+                      style={[styles.genderChip, gender === 'male' && styles.genderChipSelected]}
+                      onPress={async () => { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setGender('male'); setGenderError(''); }}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="male" size={18} color={gender === 'male' ? Colors.white : Colors.terra} />
+                      <WText style={[styles.genderChipText, gender === 'male' && styles.genderChipTextSelected]}>זכר</WText>
+                    </TouchableOpacity>
+                    <View style={{ width: Spacing.md }} />
+                    <TouchableOpacity
+                      style={[styles.genderChip, gender === 'female' && styles.genderChipSelected, gender === 'female' && styles.genderChipSelectedFemale]}
+                      onPress={async () => { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setGender('female'); setGenderError(''); }}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="female" size={18} color={gender === 'female' ? Colors.white : '#E91E8C'} />
+                      <WText style={[styles.genderChipText, gender === 'female' && styles.genderChipTextSelected]}>נקבה</WText>
+                    </TouchableOpacity>
+                  </View>
+                  {genderError ? (
+                    <WText variant="caption" color={Colors.error} style={styles.fieldError}>{genderError}</WText>
+                  ) : null}
                 </View>
               </View>
             </View>
-          </ScrollView>
-        </TouchableWithoutFeedback>
+          </TouchableWithoutFeedback>
+        </ScrollView>
 
         {/* Sticky CTA */}
         <View style={styles.ctaWrap}>
-          <WButton
-            label="המשך →"
-            onPress={handleContinue}
-            loading={loading}
-            disabled={loading}
-          />
+          <WButton label="המשך" onPress={handleContinue} loading={loading} disabled={loading} />
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -382,32 +373,16 @@ export const OnboardingStep2: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: Colors.forest,
-  },
-  flex: {
-    flex: 1,
-  },
+  safeArea: { flex: 1, backgroundColor: Colors.forest },
+  flex: { flex: 1 },
   topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.base,
-    paddingVertical: Spacing.md,
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: Spacing.base, paddingVertical: Spacing.md,
     backgroundColor: Colors.forest,
   },
-  backBtn: {
-    marginRight: Spacing.sm,
-  },
-  progressWrap: {
-    paddingHorizontal: Spacing.xl,
-    paddingBottom: Spacing.sm,
-    backgroundColor: Colors.forest,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingBottom: Spacing.xl,
-  },
+  backBtn: { marginRight: Spacing.sm },
+  progressWrap: { paddingHorizontal: Spacing.xl, paddingBottom: Spacing.sm, backgroundColor: Colors.forest },
+  scrollContent: { flexGrow: 1, paddingBottom: Spacing.xl },
   header: {
     backgroundColor: Colors.forest,
     paddingHorizontal: Spacing.xl,
@@ -416,165 +391,87 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   headline: {
-    fontFamily: FontFamily.displayBlack,
-    fontSize: FontSize['3xl'],
-    textAlign: 'right',
-    writingDirection: 'rtl',
-    marginBottom: Spacing.xs,
+    fontFamily: FontFamily.displayBlack, fontSize: FontSize['3xl'],
+    textAlign: 'right', writingDirection: 'rtl', marginBottom: Spacing.xs,
   },
-  subtext: {
-    fontFamily: FontFamily.regular,
-    fontSize: FontSize.base,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
+  subtext: { fontFamily: FontFamily.regular, fontSize: FontSize.base, textAlign: 'right', writingDirection: 'rtl' },
   formSection: {
     backgroundColor: Colors.cream,
-    borderTopLeftRadius: Radius.large,
-    borderTopRightRadius: Radius.large,
+    borderTopLeftRadius: Radius.large, borderTopRightRadius: Radius.large,
     marginTop: -(Radius.large),
-    paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.xl,
-    paddingBottom: Spacing.xl,
+    paddingHorizontal: Spacing.xl, paddingTop: Spacing.xl, paddingBottom: Spacing.xl,
   },
-  photoRow: {
-    alignItems: 'center',
-    marginBottom: Spacing.xl,
-  },
+  photoRow: { alignItems: 'center', marginBottom: Spacing.xl },
   dogPhotoCircle: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: Colors.cream2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Shadow.soft,
-    overflow: 'hidden',
+    width: 140, height: 140, borderRadius: 70,
+    backgroundColor: Colors.forestDim,
+    alignItems: 'center', justifyContent: 'center',
+    ...Shadow.sm,
   },
-  dogPhotoImage: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-  },
-  dogPhotoPlaceholder: {
-    fontSize: 48,
-  },
+  dogPhotoImage: { width: 140, height: 140, borderRadius: 70 },
   cameraOverlay: {
-    position: 'absolute',
-    bottom: 6,
-    right: 6,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    position: 'absolute', bottom: 6, right: 6,
+    width: 32, height: 32, borderRadius: 16,
     backgroundColor: Colors.terra,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: Colors.white,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: Colors.white,
   },
-  photoError: {
-    marginTop: Spacing.sm,
-    textAlign: 'center',
-  },
-  formWrap: {
-    gap: 0,
-  },
-  gap: {
-    height: Spacing.base,
-  },
-  inputLabel: {
-    marginBottom: Spacing.xs,
-    textAlign: 'right',
-  },
-  breedWrap: {
-    position: 'relative',
-    zIndex: 100,
-  },
+  photoError: { marginTop: Spacing.sm, textAlign: 'center' },
+  formWrap: { gap: 0 },
+  gap: { height: Spacing.base },
+  inputLabel: { marginBottom: Spacing.xs, textAlign: 'right' },
+
+  // Breed
+  breedWrap: {},
   breedInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row', alignItems: 'center',
     backgroundColor: Colors.cream2,
     borderRadius: Radius.medium,
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-    paddingHorizontal: Spacing.base,
-    minHeight: 52,
+    borderWidth: 1.5, borderColor: 'transparent',
+    paddingHorizontal: Spacing.base, minHeight: 52,
   },
-  breedInputFocused: {
-    borderColor: Colors.terra,
-    backgroundColor: Colors.white,
-  },
-  breedInputError: {
-    borderColor: Colors.error,
-  },
+  breedInputFocused: { borderColor: Colors.terra, backgroundColor: Colors.white },
+  breedInputError: { borderColor: Colors.error },
   breedTextInput: {
-    flex: 1,
-    fontFamily: FontFamily.medium,
-    fontSize: FontSize.base,
-    color: Colors.text,
-    paddingVertical: Spacing.md,
+    flex: 1, fontFamily: FontFamily.medium,
+    fontSize: FontSize.base, color: Colors.text, paddingVertical: Spacing.md,
   },
   breedDropdown: {
-    position: 'absolute',
-    top: '100%',
-    left: 0,
-    right: 0,
     backgroundColor: Colors.white,
     borderRadius: Radius.medium,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    marginTop: 4,
-    ...Shadow.medium,
-    zIndex: 200,
+    borderWidth: 1, borderColor: Colors.border,
+    marginTop: 4, ...Shadow.md,
   },
   breedItem: {
-    paddingHorizontal: Spacing.base,
-    paddingVertical: Spacing.md,
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: Spacing.base, paddingVertical: Spacing.md,
+    flexDirection: 'row-reverse' as any,
   },
-  breedSeparator: {
-    height: 1,
-    backgroundColor: Colors.border,
-    marginHorizontal: Spacing.base,
+  breedItemBorder: { borderBottomWidth: 0.5, borderBottomColor: Colors.border },
+  fieldError: { marginTop: Spacing.xs, textAlign: 'right' },
+
+  // Date
+  ageHintRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    marginTop: Spacing.xs, justifyContent: 'flex-end',
   },
-  fieldError: {
-    marginTop: Spacing.xs,
-    textAlign: 'right',
-  },
-  ageHint: {
-    marginTop: Spacing.xs,
-    textAlign: 'right',
-  },
-  genderRow: {
-    flexDirection: 'row',
-  },
+
+  // Gender
+  genderRow: { flexDirection: 'row' },
   genderChip: {
-    flex: 1,
-    height: 52,
-    borderRadius: Radius.medium,
+    flex: 1, height: 52, borderRadius: Radius.medium,
     backgroundColor: Colors.cream2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: Colors.border,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1.5, borderColor: Colors.border,
+    flexDirection: 'row', gap: Spacing.sm,
   },
-  genderChipSelected: {
-    backgroundColor: Colors.terra,
-    borderColor: Colors.terra,
-  },
-  genderChipText: {
-    fontFamily: FontFamily.semibold,
-    fontSize: FontSize.md,
-    color: Colors.text,
-  },
-  genderChipTextSelected: {
-    color: Colors.white,
-  },
+  genderChipSelected: { backgroundColor: Colors.terra, borderColor: Colors.terra },
+  genderChipSelectedFemale: { backgroundColor: '#E91E8C', borderColor: '#E91E8C' },
+  genderChipText: { fontFamily: FontFamily.semibold, fontSize: FontSize.md, color: Colors.text },
+  genderChipTextSelected: { color: Colors.white },
+
   ctaWrap: {
-    paddingHorizontal: Spacing.xl,
-    paddingBottom: Spacing.lg,
-    paddingTop: Spacing.md,
-    backgroundColor: Colors.cream,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
+    paddingHorizontal: Spacing.xl, paddingBottom: Spacing.lg, paddingTop: Spacing.md,
+    backgroundColor: Colors.cream, borderTopWidth: 1, borderTopColor: Colors.border,
   },
 });
