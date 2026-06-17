@@ -147,6 +147,16 @@ const EventCard = React.memo<EventCardProps>(({ event, onPress, onJoin }) => {
 
 // ─── Post Card ────────────────────────────────────────────────────────────────
 
+function reportPost(dogName: string) {
+  Alert.alert('דווח', 'בחר סיבה לדיווח', [
+    { text: 'תוכן פוגעני',      onPress: () => Alert.alert('תודה', 'הדיווח נשלח לבדיקה') },
+    { text: 'ספאם',             onPress: () => Alert.alert('תודה', 'הדיווח נשלח לבדיקה') },
+    { text: 'פרופיל מזויף',    onPress: () => Alert.alert('תודה', 'הדיווח נשלח לבדיקה') },
+    { text: 'התנהגות לא הולמת', onPress: () => Alert.alert('תודה', 'הדיווח נשלח לבדיקה') },
+    { text: 'ביטול', style: 'cancel' },
+  ]);
+}
+
 interface PostCardProps {
   post: Post;
   likeAnim: Animated.Value;
@@ -195,10 +205,17 @@ const PostCard = React.memo<PostCardProps>(({ post, likeAnim, onLike, onCommentP
           <Image source={{ uri: post.dogPhoto }} style={styles.postAvatar} />
           <View style={styles.postHeaderInfo}>
             <WText style={styles.postDogName}>{post.dogName}</WText>
-            <WText style={styles.postMeta}>{post.ownerCity}  ·  {timeAgo(post.createdAt)}</WText>
+            <WText style={styles.postMeta}>{timeAgo(post.createdAt)}</WText>
           </View>
         </TouchableOpacity>
-        <TouchableOpacity hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} activeOpacity={0.6}>
+        <TouchableOpacity
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          activeOpacity={0.6}
+          onPress={() => Alert.alert(post.dogName, undefined, [
+            { text: 'דווח על פוסט', style: 'destructive', onPress: () => reportPost(post.dogName) },
+            { text: 'ביטול', style: 'cancel' },
+          ])}
+        >
           <Ionicons name="ellipsis-horizontal" size={20} color={Colors.gray} />
         </TouchableOpacity>
       </View>

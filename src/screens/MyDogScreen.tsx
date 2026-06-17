@@ -31,6 +31,7 @@ import { notificationService } from '@/services/notifications';
 import { HealthRecord, Reminder } from '@/types';
 import { WoofyProModal } from '@/screens/WoofyProModal';
 import { AIDailyTip } from '@/components/AIDailyTip';
+import { PhoneVerificationModal } from '@/components/PhoneVerificationModal';
 
 // ─── Health Record Types ────────────────────────────────────────────────────
 
@@ -149,6 +150,10 @@ export const MyDogScreen: React.FC = () => {
 
   // ── Pro modal state ──────
   const [showPro, setShowPro] = useState(false);
+
+  // ── Phone verification state ──
+  const [showPhoneVerif, setShowPhoneVerif] = useState(false);
+  const [phoneVerified, setPhoneVerified] = useState(false);
 
   // ── Reminder modal state ──
   const [showReminderModal, setShowReminderModal] = useState(false);
@@ -454,7 +459,7 @@ export const MyDogScreen: React.FC = () => {
             end={{ x: 1, y: 1 }}
             style={styles.proBannerGradient}
           >
-            <WText style={styles.proBannerCrown}>👑</WText>
+            <Ionicons name="star" size={26} color={Colors.yellow} />
             <View style={styles.proBannerText}>
               <View style={styles.proBannerTitleRow}>
                 <WText style={styles.proBannerTitle}>Woofy Pro</WText>
@@ -467,6 +472,24 @@ export const MyDogScreen: React.FC = () => {
             <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.5)" />
           </LinearGradient>
         </TouchableOpacity>
+
+        {/* ═══ PHONE VERIFICATION BANNER ═══ */}
+        {!phoneVerified && (
+          <TouchableOpacity
+            style={styles.verifyBanner}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowPhoneVerif(true); }}
+            activeOpacity={0.88}
+          >
+            <View style={styles.verifyBannerIconCircle}>
+              <Ionicons name="shield-checkmark-outline" size={20} color={Colors.forest} />
+            </View>
+            <View style={styles.verifyBannerText}>
+              <WText style={styles.verifyBannerTitle}>אמת את מספר הטלפון שלך</WText>
+              <WText style={styles.verifyBannerSub}>הגן על החשבון וזכה לאמון רב יותר</WText>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
+          </TouchableOpacity>
+        )}
 
         {/* ═══ DOG SWITCHER ═══ */}
         {allDogs.length > 1 && (
@@ -820,6 +843,13 @@ export const MyDogScreen: React.FC = () => {
 
       {/* ═══ WOOFY PRO MODAL ═══ */}
       <WoofyProModal visible={showPro} onClose={() => setShowPro(false)} />
+
+      {/* ═══ PHONE VERIFICATION MODAL ═══ */}
+      <PhoneVerificationModal
+        visible={showPhoneVerif}
+        onClose={() => setShowPhoneVerif(false)}
+        onVerified={() => setPhoneVerified(true)}
+      />
     </SafeAreaView>
   );
 };
@@ -1248,7 +1278,6 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     gap: Spacing.md,
   },
-  proBannerCrown: { fontSize: 32 },
   proBannerText: { flex: 1, gap: 2 },
   proBannerTitleRow: {
     flexDirection: 'row',
@@ -1277,4 +1306,27 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     color: 'rgba(255,255,255,0.70)',
   },
+
+  // Phone verification banner
+  verifyBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    marginHorizontal: Spacing.base,
+    marginTop: Spacing.md,
+    padding: Spacing.base,
+    backgroundColor: Colors.white,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.forestDim,
+    ...Shadow.sm,
+  },
+  verifyBannerIconCircle: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: Colors.forestDim,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  verifyBannerText: { flex: 1, gap: 2 },
+  verifyBannerTitle: { fontFamily: FontFamily.semibold, fontSize: FontSize.sm, color: Colors.text, textAlign: 'right' },
+  verifyBannerSub: { fontFamily: FontFamily.regular, fontSize: FontSize.xs, color: Colors.textSecondary, textAlign: 'right' },
 });

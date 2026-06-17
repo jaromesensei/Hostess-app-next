@@ -8,6 +8,7 @@ import {
   Dimensions,
   FlatList,
   Animated,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,13 +22,14 @@ import { MOCK_POSTS } from '@/data/mockFeed';
 const { width: SCREEN_W } = Dimensions.get('window');
 const CELL = Math.floor(SCREEN_W / 3);
 
-// Deterministic mock follower counts from dogId
+// Deterministic mock stats from dogId
 function mockStats(dogId: string, postCount: number) {
   const s = dogId.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
   return {
     posts: postCount,
     followers: ((s * 137) % 800) + 80,
     following: ((s * 53)  % 250) + 30,
+    distanceKm: ((s * 17) % 18) + 1,
   };
 }
 
@@ -48,6 +50,37 @@ interface DogProfileModalProps {
 export const DogProfileModal: React.FC<DogProfileModalProps> = ({ profile, onClose }) => {
   const [following, setFollowing] = useState(false);
   const [followAnim] = useState(new Animated.Value(1));
+
+  const handleReport = () => {
+    Alert.alert('דווח', 'בחר סיבה לדיווח', [
+      { text: 'תוכן פוגעני',      onPress: () => Alert.alert('תודה', 'הדיווח נשלח לבדיקה') },
+      { text: 'ספאם',             onPress: () => Alert.alert('תודה', 'הדיווח נשלח לבדיקה') },
+      { text: 'פרופיל מזויף',    onPress: () => Alert.alert('תודה', 'הדיווח נשלח לבדיקה') },
+      { text: 'התנהגות לא הולמת', onPress: () => Alert.alert('תודה', 'הדיווח נשלח לבדיקה') },
+      { text: 'ביטול', style: 'cancel' },
+    ]);
+  };
+
+  const handleBlock = () => {
+    if (!profile) return;
+    Alert.alert(
+      'חסום משתמש',
+      `לחסום את ${profile.dogName}? לא תראה יותר את הפרופיל הזה.`,
+      [
+        { text: 'ביטול', style: 'cancel' },
+        { text: 'חסום', style: 'destructive', onPress: () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); onClose(); } },
+      ],
+    );
+  };
+
+  const handleMoreOptions = () => {
+    if (!profile) return;
+    Alert.alert(profile.dogName, undefined, [
+      { text: 'דווח על משתמש', style: 'destructive', onPress: handleReport },
+      { text: 'חסום משתמש',    style: 'destructive', onPress: handleBlock },
+      { text: 'ביטול', style: 'cancel' },
+    ]);
+  };
 
   const dogPosts = useMemo(() => {
     if (!profile) return [];
@@ -88,7 +121,7 @@ export const DogProfileModal: React.FC<DogProfileModalProps> = ({ profile, onClo
             <Ionicons name="chevron-down" size={26} color={Colors.white} />
           </TouchableOpacity>
           <WText style={styles.headerTitle}>{profile.dogName}</WText>
-          <TouchableOpacity hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+          <TouchableOpacity hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} onPress={handleMoreOptions}>
             <Ionicons name="ellipsis-horizontal" size={22} color={Colors.white} />
           </TouchableOpacity>
         </View>
@@ -108,7 +141,7 @@ export const DogProfileModal: React.FC<DogProfileModalProps> = ({ profile, onClo
                 {/* Name + owner */}
                 <WText style={styles.heroName}>{profile.dogName}</WText>
                 <WText style={styles.heroOwner}>
-                  {[profile.ownerName, profile.ownerCity].filter(Boolean).join(' · ')}
+                  {profile.ownerName ? `של ${profile.ownerName.split(' ')[0]}  ·  ` : ''}{stats.distanceKm} ק"מ ממך
                 </WText>
 
                 {/* Stats */}
@@ -161,7 +194,7 @@ export const DogProfileModal: React.FC<DogProfileModalProps> = ({ profile, onClo
           )}
           ListEmptyComponent={(
             <View style={styles.emptyGrid}>
-              <WText style={styles.emptyGridEmoji}>📸</WText>
+              <Ionicons name="camera-outline" size={52} color={Colors.cream2} />
               <WText style={styles.emptyGridText}>אין פוסטים עדיין</WText>
               <WText style={styles.emptyGridSub}>{profile.dogName} עוד לא פרסם/ה תמונות</WText>
             </View>
@@ -330,7 +363,6 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     backgroundColor: Colors.cream,
   },
-  emptyGridEmoji: { fontSize: 48 },
   emptyGridText: {
     fontFamily: FontFamily.bold,
     fontSize: FontSize.lg,
