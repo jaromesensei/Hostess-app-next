@@ -32,7 +32,7 @@ export const notificationService = {
         const id = await Notifications.scheduleNotificationAsync({
           content: {
             title: reminder.title,
-            body: `${dogName} מחכה! 🐾`,
+            body: `${dogName} מחכה!`,
             sound: true,
           },
           trigger: Platform.OS === 'ios'

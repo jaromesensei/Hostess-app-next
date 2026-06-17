@@ -330,7 +330,7 @@ export const MyDogScreen: React.FC = () => {
     return (
       <SafeAreaView style={styles.root}>
         <View style={styles.noDogContainer}>
-          <WText style={{ fontSize: 64 }}>🐾</WText>
+          <MaterialCommunityIcons name="dog" size={64} color={Colors.gray} />
           <WText variant="h3" color={Colors.forest} center style={{ marginTop: Spacing.base }}>
             לא נרשם כלב
           </WText>
@@ -364,7 +364,7 @@ export const MyDogScreen: React.FC = () => {
             />
           ) : (
             <View style={[styles.heroImage, styles.heroPlaceholder]}>
-              <WText style={{ fontSize: 72 }}>🐾</WText>
+              <MaterialCommunityIcons name="dog" size={72} color={Colors.gray} />
             </View>
           )}
           {/* Gradient overlay with dog name */}
@@ -395,7 +395,7 @@ export const MyDogScreen: React.FC = () => {
             <WText variant="captionMedium" color={Colors.gray}>{getAgeString(dog.birthDate)}</WText>
             <WText variant="captionMedium" color={Colors.gray}> • </WText>
             <WText variant="captionMedium" color={Colors.gray}>
-              {dog.gender === 'male' ? '♂' : '♀'}
+              {dog.gender === 'male' ? 'זכר' : 'נקבה'}
             </WText>
             {dog.isNeutered && (
               <View style={styles.neuteredTag}>
@@ -510,7 +510,7 @@ export const MyDogScreen: React.FC = () => {
                       <Image source={{ uri: d.photos[0] }} style={styles.switcherAvatar} />
                     ) : (
                       <View style={[styles.switcherAvatar, styles.switcherAvatarPlaceholder]}>
-                        <WText style={{ fontSize: 14 }}>🐾</WText>
+                        <MaterialCommunityIcons name="paw" size={14} color={Colors.gray} />
                       </View>
                     )}
                     <WText style={[styles.switcherLabel, d.id === state.activeDogId && styles.switcherLabelActive]}>
@@ -533,7 +533,10 @@ export const MyDogScreen: React.FC = () => {
         {/* ═══ HEALTH PASSPORT ═══ */}
 
         <View style={styles.sectionHeader}>
-          <WText variant="h4" color={Colors.forest}>📋 פנקס בריאות</WText>
+          <View style={styles.sectionTitleRow}>
+            <Ionicons name="clipboard-outline" size={18} color={Colors.forest} />
+            <WText variant="h4" color={Colors.forest}> פנקס בריאות</WText>
+          </View>
           <TouchableOpacity onPress={() => { resetHealthForm(); setShowHealthModal(true); }}>
             <WText variant="bodySemibold" color={Colors.terra}>הוסף +</WText>
           </TouchableOpacity>
@@ -541,7 +544,7 @@ export const MyDogScreen: React.FC = () => {
 
         {dogRecords.length === 0 ? (
           <View style={styles.emptyHealthCard}>
-            <WText style={{ fontSize: 36 }}>💉</WText>
+            <MaterialCommunityIcons name="needle" size={36} color={Colors.gray} />
             <WText variant="bodyMedium" color={Colors.gray} center style={{ marginTop: Spacing.sm }}>
               עוד אין רשומות רפואיות
             </WText>
@@ -588,7 +591,10 @@ export const MyDogScreen: React.FC = () => {
         {/* ═══ REMINDERS ═══ */}
 
         <View style={[styles.sectionHeader, { marginTop: Spacing['2xl'] }]}>
-          <WText variant="h4" color={Colors.forest}>🔔 תזכורות</WText>
+          <View style={styles.sectionTitleRow}>
+            <Ionicons name="notifications-outline" size={18} color={Colors.forest} />
+            <WText variant="h4" color={Colors.forest}> תזכורות</WText>
+          </View>
           <TouchableOpacity onPress={() => { resetReminderForm(); setShowReminderModal(true); }}>
             <WText variant="bodySemibold" color={Colors.terra}>הוסף +</WText>
           </TouchableOpacity>
@@ -650,7 +656,10 @@ export const MyDogScreen: React.FC = () => {
 
         {/* ═══ DANGER ZONE ═══ */}
         <View style={[styles.sectionHeader, { marginTop: Spacing['2xl'] }]}>
-          <WText variant="h4" color={Colors.error}>⚠️ אזור מסוכן</WText>
+          <View style={styles.sectionTitleRow}>
+            <Ionicons name="warning-outline" size={18} color={Colors.error} />
+            <WText variant="h4" color={Colors.error}> אזור מסוכן</WText>
+          </View>
         </View>
         <TouchableOpacity
           style={styles.deleteAccountBtn}
@@ -1010,6 +1019,10 @@ const styles = StyleSheet.create({
     marginHorizontal: Spacing.lg,
     marginTop: Spacing['2xl'],
     marginBottom: Spacing.md,
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 
   // Empty health card

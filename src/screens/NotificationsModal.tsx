@@ -75,10 +75,10 @@ const NotifCard = React.memo<NotifCardProps>(({ notif, onPress }) => {
         <Image source={{ uri: notif.postPhoto }} style={styles.postThumb} />
       )}
 
-      {/* Event emoji */}
-      {notif.eventEmoji && !notif.postPhoto && (
+      {/* Event icon */}
+      {notif.type === 'event' && !notif.postPhoto && (
         <View style={[styles.eventThumb, { backgroundColor: Colors.yellow + '22' }]}>
-          <WText style={styles.eventThumbEmoji}>{notif.eventEmoji}</WText>
+          <Ionicons name="calendar" size={24} color={Colors.yellow} />
         </View>
       )}
     </TouchableOpacity>
@@ -151,7 +151,9 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({ visible,
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <WText style={styles.emptyEmoji}>🔔</WText>
+              <View style={styles.emptyIconCircle}>
+                <Ionicons name="notifications-outline" size={40} color={Colors.gray} />
+              </View>
               <WText style={styles.emptyText}>אין עדכונים עדיין</WText>
               <WText style={styles.emptySub}>כשמישהו יאהב פוסט שלך — תדע/י כאן</WText>
             </View>
@@ -257,7 +259,14 @@ const styles = StyleSheet.create({
   eventThumbEmoji: { fontSize: 26 },
 
   empty: { alignItems: 'center', paddingTop: 80, gap: Spacing.md },
-  emptyEmoji: { fontSize: 52 },
+  emptyIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: Colors.cream2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   emptyText: { fontFamily: FontFamily.bold, fontSize: FontSize.lg, color: Colors.text },
   emptySub: { fontFamily: FontFamily.regular, fontSize: FontSize.sm, color: Colors.gray, textAlign: 'center', paddingHorizontal: Spacing['2xl'] },
 });

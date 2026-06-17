@@ -9,6 +9,8 @@ import {
   Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
@@ -176,7 +178,7 @@ export const WelcomeMomentScreen: React.FC = () => {
         {/* ── Welcome text ── */}
         <Animated.View style={[styles.welcomeSection, { opacity: welcomeOpacity, transform: [{ translateY: welcomeTranslateY }] }]}>
           <WText variant="h1" color={Colors.forest} center>
-            ברוכים הבאים למשפחה 🐾
+            ברוכים הבאים למשפחה
           </WText>
           <WText
             variant="body"
@@ -199,11 +201,10 @@ export const WelcomeMomentScreen: React.FC = () => {
         <Animated.View style={[styles.aiCard, { opacity: aiCardOpacity, transform: [{ translateY: aiCardTranslateY }] }]}>
           {/* Header */}
           <View style={styles.aiHeader}>
-            <WText
-              style={styles.aiHeaderLabel}
-            >
-              🧠 Woofy AI
-            </WText>
+            <View style={styles.aiHeaderRow}>
+              <MaterialCommunityIcons name="brain" size={18} color={Colors.white} />
+              <WText style={styles.aiHeaderLabel}>Woofy AI</WText>
+            </View>
           </View>
 
           {/* Content */}
@@ -238,11 +239,10 @@ export const WelcomeMomentScreen: React.FC = () => {
 
                 {/* Tip */}
                 <View style={styles.sectionBlock}>
-                  <WText
-                    style={styles.sectionLabel}
-                  >
-                    💡 טיפ מחקרי
-                  </WText>
+                  <View style={styles.sectionLabelRow}>
+                    <Ionicons name="bulb-outline" size={14} color={Colors.forest} />
+                    <WText style={styles.sectionLabel}>טיפ מחקרי</WText>
+                  </View>
                   <WText
                     variant="bodyMedium"
                     color={Colors.text}
@@ -265,11 +265,10 @@ export const WelcomeMomentScreen: React.FC = () => {
 
                 {/* Fun fact */}
                 <View style={styles.sectionBlock}>
-                  <WText
-                    style={styles.sectionLabel}
-                  >
-                    ✨ ידעת?
-                  </WText>
+                  <View style={styles.sectionLabelRow}>
+                    <Ionicons name="sparkles-outline" size={14} color={Colors.forest} />
+                    <WText style={styles.sectionLabel}>ידעת?</WText>
+                  </View>
                   <WText
                     variant="bodyMedium"
                     color={Colors.text}
@@ -286,7 +285,7 @@ export const WelcomeMomentScreen: React.FC = () => {
         {/* ── CTA ── */}
         <View style={styles.ctaContainer}>
           <WButton
-            label="בואו נמצא חברים 🐾"
+            label="בואו נמצא חברים"
             onPress={handleCTA}
             variant="primary"
             size="lg"
@@ -383,6 +382,12 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
   },
+  aiHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+  },
   aiHeaderLabel: {
     fontFamily: FontFamily.bold,
     fontSize: FontSize.base,
@@ -415,11 +420,16 @@ const styles = StyleSheet.create({
   sectionBlock: {
     marginBottom: 4,
   },
+  sectionLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    marginBottom: Spacing.xs,
+  },
   sectionLabel: {
     fontFamily: FontFamily.semibold,
     fontSize: FontSize.sm,
     color: Colors.forest,
-    marginBottom: Spacing.xs,
   },
   sectionText: {
     lineHeight: 22,

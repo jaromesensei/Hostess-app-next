@@ -203,12 +203,12 @@ export const MOCK_SERVICES: ServiceProvider[] = [
 ];
 
 export const SERVICE_CATEGORIES = [
-  { id: 'all',     label: 'הכל',        emoji: '🐾' },
-  { id: 'walker',  label: 'מטיילים',    emoji: '🦮' },
-  { id: 'groomer', label: 'גרומינג',    emoji: '✂️' },
-  { id: 'trainer', label: 'אימון',      emoji: '🏆' },
-  { id: 'sitter',  label: 'שמרטפות',   emoji: '🏠' },
-  { id: 'vet',     label: 'וטרינר',     emoji: '🏥' },
+  { id: 'all',     label: 'הכל'      },
+  { id: 'walker',  label: 'מטיילים'  },
+  { id: 'groomer', label: 'גרומינג'  },
+  { id: 'trainer', label: 'אימון'    },
+  { id: 'sitter',  label: 'שמרטפות' },
+  { id: 'vet',     label: 'וטרינר'   },
 ] as const;
 
 export type ServiceCategory = typeof SERVICE_CATEGORIES[number]['id'];

@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 
@@ -31,21 +32,21 @@ const FREE_FEATURES: { label: string; included: boolean }[] = [
   { label: 'חיפוש שירותים',                  included: true  },
   { label: 'גישה לאירועים ציבוריים',          included: true  },
   { label: 'התאמות ללא הגבלה',               included: false },
-  { label: 'תג "מאומת" בפרופיל ✓',           included: false },
+  { label: 'תג "מאומת" בפרופיל',             included: false },
   { label: 'עדיפות בחיפוש שירותים',          included: false },
   { label: 'סטטיסטיקות פוסטים',              included: false },
   { label: 'אירועים בלעדיים לחברי Pro',       included: false },
   { label: 'ממשק ללא פרסומות',               included: false },
 ];
 
-const PRO_FEATURES: { label: string; icon: string }[] = [
-  { label: 'התאמות ללא הגבלה',               icon: '❤️' },
-  { label: 'תג "מאומת" בפרופיל ✓',           icon: '✅' },
-  { label: 'עדיפות בחיפוש שירותים',          icon: '⭐' },
-  { label: 'סטטיסטיקות פוסטים מתקדמות',      icon: '📊' },
-  { label: 'אירועים בלעדיים לחברי Pro',       icon: '🎫' },
-  { label: 'ממשק ללא פרסומות',               icon: '🚫' },
-  { label: 'גיבוי תמונות בענן',              icon: '☁️' },
+const PRO_FEATURES: { label: string; icon: string; lib: 'ion' | 'mci' }[] = [
+  { label: 'התאמות ללא הגבלה',          icon: 'heart',              lib: 'ion' },
+  { label: 'תג "מאומת" בפרופיל',        icon: 'checkmark-circle',   lib: 'ion' },
+  { label: 'עדיפות בחיפוש שירותים',     icon: 'star',               lib: 'ion' },
+  { label: 'סטטיסטיקות פוסטים מתקדמות', icon: 'bar-chart-outline',  lib: 'ion' },
+  { label: 'אירועים בלעדיים לחברי Pro', icon: 'calendar',           lib: 'ion' },
+  { label: 'ממשק ללא פרסומות',          icon: 'eye-off-outline',    lib: 'ion' },
+  { label: 'גיבוי תמונות בענן',         icon: 'cloud-outline',      lib: 'ion' },
 ];
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -74,7 +75,7 @@ export const WoofyProModal: React.FC<WoofyProModalProps> = ({ visible, onClose }
       Animated.spring(ctaAnim, { toValue: 1,    useNativeDriver: true, speed: 20, bounciness: 6 }),
     ]).start(() => {
       Alert.alert(
-        'Woofy Pro 🐾',
+        'Woofy Pro',
         'ניסיון חינמי ל-7 ימים הופעל!\nלאחר הניסיון: ' +
           (plan === 'annual'
             ? `₪${annualTotal} לשנה (₪${annualPerMonth} לחודש)`
@@ -121,7 +122,7 @@ export const WoofyProModal: React.FC<WoofyProModalProps> = ({ visible, onClose }
             colors={['#2C4A3E', '#1A2E28']}
             style={styles.hero}
           >
-            <WText style={styles.crownEmoji}>👑</WText>
+            <Ionicons name="star" size={56} color={Colors.yellow} style={{ marginBottom: Spacing.sm }} />
             <WText style={styles.heroTitle}>Woofy Pro</WText>
             <WText style={styles.heroSub}>
               חווית כלב מועדף — ללא פשרות
@@ -199,7 +200,10 @@ export const WoofyProModal: React.FC<WoofyProModalProps> = ({ visible, onClose }
                   ]}
                 >
                   <View style={styles.featureIconWrap}>
-                    <WText style={styles.featureIcon}>{f.icon}</WText>
+                    {f.lib === 'mci'
+                      ? <MaterialCommunityIcons name={f.icon as any} size={18} color={Colors.terra} />
+                      : <Ionicons name={f.icon as any} size={18} color={Colors.terra} />
+                    }
                   </View>
                   <WText style={styles.featureLabel}>{f.label}</WText>
                   <Ionicons name="checkmark-circle" size={20} color={Colors.success} />
@@ -268,7 +272,9 @@ export const WoofyProModal: React.FC<WoofyProModalProps> = ({ visible, onClose }
             >
               {TESTIMONIALS.map((t, i) => (
                 <View key={i} style={styles.testimonialCard}>
-                  <WText style={styles.testimonialEmoji}>{t.dogEmoji}</WText>
+                  <View style={[styles.testimonialAvatarCircle, { backgroundColor: t.dogColor + '22' }]}>
+                    <MaterialCommunityIcons name="dog" size={28} color={t.dogColor} />
+                  </View>
                   <WText style={styles.testimonialQuote}>"{t.quote}"</WText>
                   <WText style={styles.testimonialAuthor}>— {t.name}</WText>
                   <View style={styles.starsRow}>
@@ -285,7 +291,12 @@ export const WoofyProModal: React.FC<WoofyProModalProps> = ({ visible, onClose }
           <View style={styles.trustRow}>
             {TRUST_BADGES.map((b, i) => (
               <View key={i} style={styles.trustBadge}>
-                <WText style={styles.trustBadgeEmoji}>{b.emoji}</WText>
+                <View style={[styles.trustIconCircle, { backgroundColor: b.color + '18' }]}>
+                  {b.lib === 'mci'
+                    ? <MaterialCommunityIcons name={b.icon as any} size={22} color={b.color} />
+                    : <Ionicons name={b.icon as any} size={22} color={b.color} />
+                  }
+                </View>
                 <WText style={styles.trustBadgeLabel}>{b.label}</WText>
               </View>
             ))}
@@ -300,7 +311,7 @@ export const WoofyProModal: React.FC<WoofyProModalProps> = ({ visible, onClose }
                 activeOpacity={0.9}
               >
                 <WText style={styles.ctaButtonText}>
-                  התחל ניסיון חינמי — 7 ימים 🐾
+                  התחל ניסיון חינמי — 7 ימים
                 </WText>
               </TouchableOpacity>
             </Animated.View>
@@ -322,17 +333,17 @@ export const WoofyProModal: React.FC<WoofyProModalProps> = ({ visible, onClose }
 // ─── Static data ──────────────────────────────────────────────────────────────
 
 const TESTIMONIALS = [
-  { dogEmoji: '🐕', name: 'לונה & אורי, תל אביב',     quote: 'מאז Pro מצאנו 3 חברים חדשים לטיולים!' },
-  { dogEmoji: '🐩', name: 'מקס & שירה, חיפה',         quote: 'תג המאומת נתן לנו הרבה יותר פניות.' },
-  { dogEmoji: '🦮', name: 'בלה & יוסף, ירושלים',      quote: 'האירועים הבלעדיים שווים את המחיר לבד.' },
-  { dogEmoji: '🐶', name: 'ריילי & תמר, רמת גן',      quote: 'הסטטיסטיקות עזרו לי להבין מה עובד.' },
+  { dogColor: Colors.terra,   name: 'לונה & אורי, תל אביב',  quote: 'מאז Pro מצאנו 3 חברים חדשים לטיולים!' },
+  { dogColor: Colors.forest,  name: 'מקס & שירה, חיפה',      quote: 'תג המאומת נתן לנו הרבה יותר פניות.' },
+  { dogColor: '#3B8EC5',      name: 'בלה & יוסף, ירושלים',   quote: 'האירועים הבלעדיים שווים את המחיר לבד.' },
+  { dogColor: '#E91E8C',      name: 'ריילי & תמר, רמת גן',   quote: 'הסטטיסטיקות עזרו לי להבין מה עובד.' },
 ];
 
 const TRUST_BADGES = [
-  { emoji: '🔒', label: 'פרטיות מלאה' },
-  { emoji: '⚡', label: 'ביטול מיידי' },
-  { emoji: '🛡️', label: 'תשלום מאובטח' },
-  { emoji: '📱', label: 'כל הפלטפורמות' },
+  { icon: 'lock-closed-outline',     lib: 'ion' as const, color: Colors.forest, label: 'פרטיות מלאה' },
+  { icon: 'flash-outline',           lib: 'ion' as const, color: Colors.terra,  label: 'ביטול מיידי' },
+  { icon: 'shield-checkmark-outline',lib: 'ion' as const, color: '#3B8EC5',     label: 'תשלום מאובטח' },
+  { icon: 'phone-portrait-outline',  lib: 'ion' as const, color: Colors.gray,   label: 'כל הפלטפורמות' },
 ];
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
@@ -371,7 +382,6 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing['3xl'],
     paddingHorizontal: Spacing.xl,
   },
-  crownEmoji: { fontSize: 56, marginBottom: Spacing.sm },
   heroTitle: {
     fontFamily: FontFamily.displayBlack,
     fontSize: 34,
@@ -517,14 +527,13 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.border,
   },
   featureIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: Colors.cream2,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.terraDim,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  featureIcon: { fontSize: 18 },
   featureLabel: {
     flex: 1,
     fontFamily: FontFamily.medium,
@@ -600,7 +609,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
   },
-  testimonialEmoji: { fontSize: 36 },
+  testimonialAvatarCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   testimonialQuote: {
     fontFamily: FontFamily.regular,
     fontSize: FontSize.sm,
@@ -630,7 +645,14 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
   },
   trustBadge: { alignItems: 'center', gap: Spacing.xs },
-  trustBadgeEmoji: { fontSize: 28 },
+  trustIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.xs,
+  },
   trustBadgeLabel: {
     fontFamily: FontFamily.medium,
     fontSize: FontSize.xs,

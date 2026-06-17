@@ -9,6 +9,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
 import { Colors, Spacing, Shadow, Radius, FontFamily, FontSize } from '@/theme';
@@ -45,13 +47,13 @@ function getGreeting(): string {
   return 'לילה טוב';
 }
 
-function reminderEmoji(type: Reminder['type']): string {
+function ReminderIcon({ type, color }: { type: Reminder['type']; color: string }) {
   switch (type) {
-    case 'food':       return '🍖';
-    case 'walk':       return '🦮';
-    case 'medication': return '💊';
-    case 'vaccine':    return '💉';
-    default:           return '🔔';
+    case 'food':       return <MaterialCommunityIcons name="food-drumstick-outline" size={22} color={color} />;
+    case 'walk':       return <MaterialCommunityIcons name="walk" size={22} color={color} />;
+    case 'medication': return <MaterialCommunityIcons name="pill" size={22} color={color} />;
+    case 'vaccine':    return <MaterialCommunityIcons name="needle" size={22} color={color} />;
+    default:           return <Ionicons name="bell-outline" size={22} color={color} />;
   }
 }
 
@@ -89,12 +91,12 @@ const ReminderCard: React.FC<{ reminder: Reminder }> = ({ reminder }) => {
       style={[styles.reminderCard, { borderTopColor: accentColor }]}
     >
       <Animated.View style={[StyleSheet.absoluteFill, styles.reminderCheckOverlay, { opacity: checkOpacity }]}>
-        <WText style={styles.reminderCheckmark}>✅</WText>
+        <Ionicons name="checkmark-circle" size={32} color={Colors.success} />
       </Animated.View>
 
-      {/* Colored emoji circle */}
-      <View style={[styles.reminderEmojiCircle, { backgroundColor: accentColor + '18' }]}>
-        <WText style={styles.reminderEmoji}>{reminderEmoji(reminder.type)}</WText>
+      {/* Colored icon circle */}
+      <View style={[styles.reminderIconCircle, { backgroundColor: accentColor + '18' }]}>
+        <ReminderIcon type={reminder.type} color={accentColor} />
       </View>
       <WText style={styles.reminderTitle} numberOfLines={1}>{reminder.title}</WText>
       <WText style={styles.reminderTime}>{reminder.time}</WText>
@@ -129,11 +131,11 @@ export const HomeScreen: React.FC = () => {
       {/* ── Header ── */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <WText style={styles.greeting}>{getGreeting()}, {ownerName || 'שם'} 👋</WText>
+          <WText style={styles.greeting}>{getGreeting()}, {ownerName || 'שם'}</WText>
           <WText style={styles.dateLabel}>{getHebDate()}</WText>
         </View>
         <TouchableOpacity onPress={handleMyDogTap} activeOpacity={0.8}>
-          <WAvatar uri={dog?.photos?.[0] ?? null} size={46} placeholder="🐾" />
+          <WAvatar uri={dog?.photos?.[0] ?? null} size={46} />
         </TouchableOpacity>
       </View>
 
@@ -165,7 +167,7 @@ export const HomeScreen: React.FC = () => {
           {reminders.length === 0 ? (
             <View style={styles.noRemindersRow}>
               <View style={styles.noRemindersPill}>
-                <WText style={styles.noRemindersText}>אין תזכורות להיום 🎉</WText>
+                <WText style={styles.noRemindersText}>אין תזכורות להיום</WText>
               </View>
             </View>
           ) : (
@@ -184,7 +186,7 @@ export const HomeScreen: React.FC = () => {
         {/* ── Nearby dogs ── */}
         <View style={styles.section}>
           <View style={styles.sectionRow}>
-            <WText style={styles.sectionTitle}>כלבים קרובים 🗺️</WText>
+            <WText style={styles.sectionTitle}>כלבים קרובים</WText>
             <View style={styles.countPill}>
               <WText style={styles.countText}>{shuffledDogs.length}</WText>
             </View>
@@ -192,7 +194,9 @@ export const HomeScreen: React.FC = () => {
 
           {shuffledDogs.length === 0 ? (
             <View style={styles.emptyState}>
-              <WText style={styles.emptyEmoji}>🐾</WText>
+              <View style={styles.emptyIconCircle}>
+                <MaterialCommunityIcons name="dog" size={44} color={Colors.gray} />
+              </View>
               <WText variant="h4" color={Colors.forest} center>אין כלבים קרובים כרגע</WText>
               <WText variant="caption" color={Colors.gray} center style={styles.emptySubtext}>
                 בדוק שוב מאוחר יותר
@@ -341,8 +345,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 2,
   },
-  reminderCheckmark: { fontSize: 26 },
-  reminderEmojiCircle: {
+  reminderIconCircle: {
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -350,7 +353,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: Spacing.sm,
   },
-  reminderEmoji: { fontSize: 22 },
   reminderTitle: {
     fontFamily: FontFamily.bold,
     fontSize: 12,
@@ -374,10 +376,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: Spacing['3xl'],
   },
-  emptyEmoji: {
-    fontSize: 56,
+  emptyIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: Colors.cream2,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: Spacing.md,
-    textAlign: 'center',
   },
   emptySubtext: { marginTop: Spacing.xs },
 

@@ -1,12 +1,11 @@
 import React from 'react';
 import { View, Image, StyleSheet, ViewStyle } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Colors, Shadow } from '@/theme';
-import { WText } from './Text';
 
 interface AvatarProps {
   uri?: string | null;
   size?: number;
-  placeholder?: string;
   style?: ViewStyle;
   online?: boolean;
 }
@@ -14,7 +13,6 @@ interface AvatarProps {
 export const WAvatar: React.FC<AvatarProps> = ({
   uri,
   size = 56,
-  placeholder = '🐾',
   style,
   online,
 }) => {
@@ -39,7 +37,7 @@ export const WAvatar: React.FC<AvatarProps> = ({
           />
         ) : (
           <View style={[styles.placeholder, { borderRadius: size / 2 }]}>
-            <WText style={{ fontSize: size * 0.45 }}>{placeholder}</WText>
+            <MaterialCommunityIcons name="paw" size={size * 0.42} color={Colors.gray} />
           </View>
         )}
       </View>

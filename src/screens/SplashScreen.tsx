@@ -3,6 +3,7 @@ import { StyleSheet, View, Animated } from 'react-native';
 import * as ExpSplash from 'expo-splash-screen';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Colors, FontFamily, FontSize } from '@/theme';
 import { RootStackParamList } from '@/types';
 import { storage } from '@/services/storage';
@@ -45,7 +46,9 @@ export const SplashScreen: React.FC = () => {
 
   return (
     <View style={styles.root}>
-      <Animated.Text style={[styles.paw, { transform: [{ scale }], opacity }]}>🐾</Animated.Text>
+      <Animated.View style={[styles.paw, { transform: [{ scale }], opacity }]}>
+        <MaterialCommunityIcons name="paw" size={80} color={Colors.white} />
+      </Animated.View>
       <Animated.Text style={[styles.title, { opacity: textOpacity }]}>Woofy</Animated.Text>
       <Animated.Text style={[styles.tagline, { opacity: textOpacity }]}>
         דע מה הכלב שלך מרגיש
@@ -62,8 +65,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   paw: {
-    fontSize: 80,
     marginBottom: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     fontFamily: FontFamily.displayBlack,

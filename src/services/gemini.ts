@@ -81,7 +81,7 @@ export async function generateMatchInsight(dog1: Dog, dog2: Dog): Promise<string
   if (!GEMINI_API_KEY) {
     const sharedActivities = dog1.activities.filter(a => dog2.activities.includes(a));
     const shared = sharedActivities.length > 0 ? sharedActivities[0] : 'טיולים';
-    return `${dog1.name} ו${dog2.name} חולקים אהבה ל${shared} ורמת אנרגיה דומה — שילוב מושלם לחברות אמיתית. 🐾`;
+    return `${dog1.name} ו${dog2.name} חולקים אהבה ל${shared} ורמת אנרגיה דומה — שילוב מושלם לחברות אמיתית.`;
   }
 
   const prompt = `
@@ -95,8 +95,8 @@ export async function generateMatchInsight(dog1: Dog, dog2: Dog): Promise<string
 
   try {
     const text = await callGemini(prompt);
-    return text.trim() || `${dog1.name} ו${dog2.name} נראים כמו זוג מושלם! 🐾`;
+    return text.trim() || `${dog1.name} ו${dog2.name} נראים כמו זוג מושלם!`;
   } catch {
-    return `${dog1.name} ו${dog2.name} נראים כמו זוג מושלם! 🐾`;
+    return `${dog1.name} ו${dog2.name} נראים כמו זוג מושלם!`;
   }
 }

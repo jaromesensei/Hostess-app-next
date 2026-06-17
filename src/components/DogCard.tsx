@@ -8,6 +8,8 @@ import {
   ViewStyle,
   Animated,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
 import { Colors, Spacing, Shadow, FontFamily, FontSize } from '@/theme';
@@ -37,21 +39,9 @@ function getDistance(dogId: string): string {
 
 // First shared activity between two dogs
 function getSharedActivity(dogA: Dog, dogB: Dog): string | null {
-  const ACTIVITY_EMOJI: Record<string, string> = {
-    ריצה: '🏃',
-    פריסבי: '🎾',
-    שחייה: '🌊',
-    טיולים: '🥾',
-    אגיליטי: '⚡',
-    אילוף: '🎓',
-    סנופרינג: '🐽',
-    הנחה: '😌',
-    ציד: '🦆',
-  };
   const shared = dogA.activities.find(a => dogB.activities.includes(a));
   if (!shared) return null;
-  const emoji = ACTIVITY_EMOJI[shared] ?? '🐾';
-  return `${emoji} שניהם אוהבים ${shared}`;
+  return `שניהם אוהבים ${shared}`;
 }
 
 export const DogCard: React.FC<DogCardProps> = ({
@@ -80,9 +70,10 @@ export const DogCard: React.FC<DogCardProps> = ({
     const score = compatibilityScore(dog, myDog);
     if (score >= 75) {
       compatHint = (
-        <WText style={styles.compatSuccess}>
-          💛 מתאים ל{myDog.name}!
-        </WText>
+        <View style={styles.compatSuccessRow}>
+          <Ionicons name="star" size={12} color={Colors.yellow} />
+          <WText style={styles.compatSuccess}> מתאים ל{myDog.name}!</WText>
+        </View>
       );
     } else {
       const shared = getSharedActivity(dog, myDog);
@@ -125,8 +116,9 @@ export const DogCard: React.FC<DogCardProps> = ({
           </WText>
           {(dog.ownerName || dog.ownerCity) && (
             <View style={styles.ownerChip}>
+              <Ionicons name="person-circle-outline" size={12} color="rgba(255,255,255,0.75)" />
               <WText style={styles.ownerChipText}>
-                👤 {[dog.ownerName, dog.ownerCity].filter(Boolean).join(' · ')}
+                {' '}{[dog.ownerName, dog.ownerCity].filter(Boolean).join(' · ')}
               </WText>
             </View>
           )}
@@ -165,9 +157,11 @@ export const DogCard: React.FC<DogCardProps> = ({
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               style={styles.heartButton}
             >
-              <WText style={styles.heartIcon}>
-                {isLiked ? '❤️' : '🤍'}
-              </WText>
+              <Ionicons
+                name={isLiked ? 'heart' : 'heart-outline'}
+                size={24}
+                color={isLiked ? Colors.terra : Colors.gray}
+              />
             </TouchableOpacity>
           </Animated.View>
         </View>
@@ -233,6 +227,8 @@ const styles = StyleSheet.create({
   ownerChip: {
     marginTop: 5,
     alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.18)',
     borderRadius: 10,
     paddingHorizontal: 8,
@@ -275,6 +271,10 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: Spacing.sm,
   },
+  compatSuccessRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   compatSuccess: {
     fontFamily: FontFamily.semibold,
     fontSize: 12,
@@ -287,8 +287,5 @@ const styles = StyleSheet.create({
   },
   heartButton: {
     padding: 4,
-  },
-  heartIcon: {
-    fontSize: 22,
   },
 });

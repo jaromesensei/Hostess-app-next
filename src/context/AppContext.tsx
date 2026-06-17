@@ -307,7 +307,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         {
           id: `msg_${dog.id}_1`,
           senderId: dog.id,
-          text: `היי! ראיתי את הכלב שלך — נראה מדהים! 🐾 אולי ניפגש בפארק?`,
+          text: `היי! ראיתי את הכלב שלך — נראה מדהים! אולי ניפגש בפארק?`,
           timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
         },
       ],

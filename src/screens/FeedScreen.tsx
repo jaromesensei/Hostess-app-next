@@ -14,9 +14,8 @@ import {
   Dimensions,
   Alert,
   ActivityIndicator,
-  Text,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -36,6 +35,29 @@ import { CameraFAB } from '@/components/CameraFAB';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
+// ─── Category maps ────────────────────────────────────────────────────────────
+
+const CATEGORY_ICONS: Record<Event['category'], { icon: string; lib: 'ion' | 'mci' }> = {
+  walk:        { icon: 'walk',           lib: 'mci' },
+  meetup:      { icon: 'dog',            lib: 'mci' },
+  training:    { icon: 'ribbon-outline', lib: 'ion' },
+  competition: { icon: 'trophy',         lib: 'ion' },
+};
+
+const CATEGORY_COLORS: Record<Event['category'], string> = {
+  walk:        Colors.forest,
+  meetup:      Colors.terra,
+  training:    '#F5C842',
+  competition: '#3B8EC5',
+};
+
+const CATEGORY_OPTIONS: { value: Event['category']; label: string; icon: string; lib: 'ion' | 'mci'; color: string }[] = [
+  { value: 'walk',        label: 'טיול',   icon: 'walk',           lib: 'mci', color: Colors.forest },
+  { value: 'meetup',      label: 'מפגש',   icon: 'dog',            lib: 'mci', color: Colors.terra  },
+  { value: 'training',    label: 'אילוף',  icon: 'ribbon-outline', lib: 'ion', color: '#F5C842'     },
+  { value: 'competition', label: 'תחרות',  icon: 'trophy',         lib: 'ion', color: '#3B8EC5'     },
+];
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function timeAgo(iso: string): string {
@@ -48,6 +70,35 @@ function timeAgo(iso: string): string {
   const d = Math.floor(h / 24);
   if (d < 7) return `${d}י׳`;
   return `${Math.floor(d / 7)}שב׳`;
+}
+
+function formatDateInput(raw: string, prev: string): string {
+  const digits = raw.replace(/\D/g, '');
+  const prevDigits = prev.replace(/\D/g, '');
+  if (digits.length < prevDigits.length) {
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+    return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4, 8)}`;
+  }
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4, 8)}`;
+}
+
+function formatTimeInput(raw: string, prev: string): string {
+  const digits = raw.replace(/\D/g, '');
+  const prevDigits = prev.replace(/\D/g, '');
+  if (digits.length < prevDigits.length) {
+    return digits.length <= 2 ? digits : `${digits.slice(0, 2)}:${digits.slice(2)}`;
+  }
+  if (digits.length <= 2) return digits;
+  return `${digits.slice(0, 2)}:${digits.slice(2, 4)}`;
+}
+
+function EventIcon({ icon, lib, size, color }: { icon: string; lib: 'ion' | 'mci'; size: number; color: string }) {
+  return lib === 'mci'
+    ? <MaterialCommunityIcons name={icon as any} size={size} color={color} />
+    : <Ionicons name={icon as any} size={size} color={color} />;
 }
 
 // ─── Story Item ───────────────────────────────────────────────────────────────
@@ -97,9 +148,13 @@ const EventCard = React.memo<EventCardProps>(({ event, onPress, onJoin }) => {
 
   return (
     <TouchableOpacity style={styles.eventCard} onPress={onPress} activeOpacity={0.88}>
-      {/* Colored header with emoji */}
+      {/* Colored header with icon or photo */}
       <View style={[styles.eventCardTop, { backgroundColor: event.color }]}>
-        <Text style={styles.eventCardEmoji}>{event.emoji}</Text>
+        {event.image ? (
+          <Image source={{ uri: event.image }} style={StyleSheet.absoluteFill as any} resizeMode="cover" />
+        ) : (
+          <EventIcon icon={event.icon} lib={event.lib} size={32} color="rgba(255,255,255,0.9)" />
+        )}
         <View style={styles.eventDateChip}>
           <WText style={styles.eventDateText}>{formatEventDate(event.date)}</WText>
         </View>
@@ -169,7 +224,6 @@ const PostCard = React.memo<PostCardProps>(({ post, likeAnim, onLike, onCommentP
   const [captionExpanded, setCaptionExpanded] = useState(false);
   const shortened = post.caption.length > 88;
 
-  // Card entrance animation
   const mountAnim = useRef(new Animated.Value(0)).current;
   const mountTY   = useRef(new Animated.Value(10)).current;
   useEffect(() => {
@@ -179,7 +233,6 @@ const PostCard = React.memo<PostCardProps>(({ post, likeAnim, onLike, onCommentP
     ]).start();
   }, []);
 
-  // Double-tap to like
   const lastTap = useRef<number>(0);
   const heartBurst = useRef(new Animated.Value(0)).current;
 
@@ -319,6 +372,18 @@ export const FeedScreen: React.FC = () => {
   const [newCaption, setNewCaption] = useState('');
   const [publishing, setPublishing] = useState(false);
 
+  // Create event modal
+  const [showCreateEvent, setShowCreateEvent] = useState(false);
+  const [evTitle, setEvTitle] = useState('');
+  const [evDesc, setEvDesc] = useState('');
+  const [evDate, setEvDate] = useState('');
+  const [evTime, setEvTime] = useState('');
+  const [evLocation, setEvLocation] = useState('');
+  const [evCategory, setEvCategory] = useState<Event['category']>('meetup');
+  const [evImage, setEvImage] = useState<string | null>(null);
+  const [evPublishing, setEvPublishing] = useState(false);
+  const [evTitleError, setEvTitleError] = useState('');
+
   // Event details modal
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 
@@ -393,7 +458,10 @@ export const FeedScreen: React.FC = () => {
       aspect: [1, 1],
       quality: 0.85,
     });
-    if (!result.canceled && result.assets[0]) setNewImage(result.assets[0].uri);
+    if (!result.canceled && result.assets[0]) {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setNewImage(result.assets[0].uri);
+    }
   }, []);
 
   const handlePublishPost = useCallback(async () => {
@@ -426,6 +494,87 @@ export const FeedScreen: React.FC = () => {
     setShowCreate(false); setNewImage(null); setNewCaption('');
   }, []);
 
+  // ── Create event ──────────────────────────────────────────────────────────────
+
+  const handlePickEventImage = useCallback(async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('הרשאה נדרשת', 'אנא אשר גישה לגלריה');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.85,
+    });
+    if (!result.canceled && result.assets[0]) {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setEvImage(result.assets[0].uri);
+    }
+  }, []);
+
+  const handlePublishEvent = useCallback(async () => {
+    if (!evTitle.trim()) {
+      setEvTitleError('אנא הכנס כותרת לאירוע');
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return;
+    }
+    setEvPublishing(true);
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    let eventDate = new Date();
+    const dateParts = evDate.split('/');
+    if (dateParts.length === 3) {
+      const [dd, mm, yyyy] = dateParts;
+      const parsed = new Date(parseInt(yyyy, 10), parseInt(mm, 10) - 1, parseInt(dd, 10));
+      if (!isNaN(parsed.getTime())) eventDate = parsed;
+    }
+
+    const catInfo = CATEGORY_ICONS[evCategory];
+    const newEvent: Event = {
+      id: `ev_u_${Date.now()}`,
+      title: evTitle.trim(),
+      description: evDesc.trim(),
+      date: eventDate.toISOString(),
+      time: evTime || '00:00',
+      location: evLocation.trim() || 'מיקום לא צוין',
+      address: evLocation.trim() || '',
+      organizer: `${state.ownerName || ''} ו${state.dog?.name ?? 'הכלב'}`,
+      organizerDogPhoto: state.dog?.photos?.[0] ?? 'https://placedog.net/100/100?id=1',
+      category: evCategory,
+      icon: catInfo.icon,
+      lib: catInfo.lib,
+      image: evImage ?? undefined,
+      color: CATEGORY_COLORS[evCategory],
+      attendees: 1,
+      isAttending: true,
+    };
+
+    setEvents(prev => [newEvent, ...prev]);
+    setShowCreateEvent(false);
+    setEvTitle('');
+    setEvDesc('');
+    setEvDate('');
+    setEvTime('');
+    setEvLocation('');
+    setEvCategory('meetup');
+    setEvImage(null);
+    setEvPublishing(false);
+  }, [evTitle, evDesc, evDate, evTime, evLocation, evCategory, evImage, state.dog, state.ownerName]);
+
+  const handleCloseCreateEvent = useCallback(() => {
+    setShowCreateEvent(false);
+    setEvTitle('');
+    setEvDesc('');
+    setEvDate('');
+    setEvTime('');
+    setEvLocation('');
+    setEvCategory('meetup');
+    setEvImage(null);
+    setEvTitleError('');
+  }, []);
+
   // ── Stories ───────────────────────────────────────────────────────────────────
 
   const handleStoryPress = useCallback((storyId: string) => {
@@ -455,6 +604,12 @@ export const FeedScreen: React.FC = () => {
   // ── Events ────────────────────────────────────────────────────────────────────
 
   const handleJoinEvent = useCallback((eventId: string) => {
+    const ev = events.find(e => e.id === eventId);
+    if (ev && !ev.isAttending && ev.maxAttendees && ev.attendees >= ev.maxAttendees) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('האירוע מלא', 'אין יותר מקומות פנויים באירוע זה');
+      return;
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setEvents(prev =>
       prev.map(e =>
@@ -463,13 +618,12 @@ export const FeedScreen: React.FC = () => {
           : e,
       ),
     );
-    // Also sync selectedEvent if open
     setSelectedEvent(prev =>
       prev?.id === eventId
         ? { ...prev, isAttending: !prev.isAttending, attendees: prev.isAttending ? prev.attendees - 1 : prev.attendees + 1 }
         : prev,
     );
-  }, []);
+  }, [events]);
 
   // ── Render ────────────────────────────────────────────────────────────────────
 
@@ -509,9 +663,17 @@ export const FeedScreen: React.FC = () => {
       {/* Events section */}
       <View style={styles.eventsSection}>
         <View style={styles.eventsSectionHeader}>
-          <WText style={styles.eventsSectionTitle}>📅 אירועים קרובים</WText>
-          <TouchableOpacity activeOpacity={0.7}>
-            <WText style={styles.eventsSeeAll}>ראה הכל</WText>
+          <View style={styles.evTitleRow}>
+            <Ionicons name="calendar-outline" size={15} color={Colors.terra} />
+            <WText style={styles.eventsSectionTitle}>אירועים קרובים</WText>
+          </View>
+          <TouchableOpacity
+            style={styles.evCreateBtn}
+            onPress={() => setShowCreateEvent(true)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="add" size={14} color={Colors.terra} />
+            <WText style={styles.eventsSeeAll}>צור אירוע</WText>
           </TouchableOpacity>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.eventsContent}>
@@ -551,7 +713,12 @@ export const FeedScreen: React.FC = () => {
           data={commentsPost?.comments ?? []}
           keyExtractor={c => c.id}
           contentContainerStyle={styles.commentsListContent}
-          ListEmptyComponent={<WText style={styles.emptyComments}>עוד אין תגובות — היה הראשון! 💬</WText>}
+          ListEmptyComponent={
+            <View style={styles.emptyCommentsWrap}>
+              <Ionicons name="chatbubble-outline" size={40} color={Colors.gray} />
+              <WText style={styles.emptyComments}>עוד אין תגובות — היה הראשון!</WText>
+            </View>
+          }
           renderItem={({ item }) => (
             <View style={styles.commentRow}>
               <Image source={{ uri: item.authorDogPhoto }} style={styles.commentRowAvatar} />
@@ -643,9 +810,153 @@ export const FeedScreen: React.FC = () => {
                 maxLength={300}
               />
             </View>
-            {newCaption.length > 0 && (
-              <WText style={styles.charCount}>{newCaption.length}/300</WText>
-            )}
+            <WText style={styles.charCount}>{newCaption.length}/300</WText>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </Modal>
+  );
+
+  // ── Create Event Modal ────────────────────────────────────────────────────────
+
+  const CreateEventModal = (
+    <Modal
+      visible={showCreateEvent}
+      animationType="slide"
+      presentationStyle="fullScreen"
+      onRequestClose={handleCloseCreateEvent}
+    >
+      <SafeAreaView style={styles.createSafe} edges={['top', 'bottom'] as any}>
+        <View style={styles.createHeader}>
+          <TouchableOpacity onPress={handleCloseCreateEvent}>
+            <WText style={styles.createCancel}>ביטול</WText>
+          </TouchableOpacity>
+          <WText style={styles.createTitle}>אירוע חדש</WText>
+          <TouchableOpacity onPress={handlePublishEvent} disabled={!evTitle.trim() || evPublishing}>
+            {evPublishing
+              ? <ActivityIndicator size="small" color={Colors.terra} />
+              : <WText style={[styles.createShare, !evTitle.trim() && styles.createShareDisabled]}>פרסם</WText>}
+          </TouchableOpacity>
+        </View>
+
+        <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            {/* Image picker */}
+            <TouchableOpacity style={styles.evImagePickerArea} onPress={handlePickEventImage} activeOpacity={0.85}>
+              {evImage
+                ? <Image source={{ uri: evImage }} style={styles.evPickedImage} resizeMode="cover" />
+                : (
+                  <View style={styles.evImagePlaceholder}>
+                    <Ionicons name="image-outline" size={48} color={Colors.gray} />
+                    <WText style={styles.evImagePlaceholderText}>הוסף תמונה לאירוע</WText>
+                    <WText style={styles.evImagePlaceholderSub}>אופציונלי</WText>
+                  </View>
+                )}
+            </TouchableOpacity>
+
+            {/* Form */}
+            <View style={styles.evFormSection}>
+              {/* Category */}
+              <View style={styles.evInputWrap}>
+                <WText style={styles.evFormLabel}>סוג אירוע</WText>
+                <View style={styles.evCategoryRow}>
+                  {CATEGORY_OPTIONS.map((cat) => {
+                    const isSelected = evCategory === cat.value;
+                    return (
+                      <TouchableOpacity
+                        key={cat.value}
+                        style={[
+                          styles.evCategoryChip,
+                          isSelected && { borderColor: cat.color, backgroundColor: cat.color + '14' },
+                        ]}
+                        onPress={async () => { await Haptics.selectionAsync(); setEvCategory(cat.value); }}
+                        activeOpacity={0.75}
+                      >
+                        <EventIcon icon={cat.icon} lib={cat.lib} size={18} color={isSelected ? cat.color : Colors.gray} />
+                        <WText style={[styles.evCategoryLabel, isSelected && { color: cat.color }]}>{cat.label}</WText>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* Title */}
+              <View style={styles.evInputWrap}>
+                <WText style={styles.evFormLabel}>כותרת האירוע *</WText>
+                <TextInput
+                  style={[styles.evTextInput, !!evTitleError && styles.evTextInputError]}
+                  placeholder="מה קורה?"
+                  placeholderTextColor={Colors.placeholder}
+                  value={evTitle}
+                  onChangeText={(t) => { setEvTitle(t); if (t.trim()) setEvTitleError(''); }}
+                  textAlign="right"
+                  maxLength={80}
+                />
+                {!!evTitleError && <WText style={styles.evInputError}>{evTitleError}</WText>}
+              </View>
+
+              {/* Date & Time */}
+              <View style={styles.evDateTimeRow}>
+                <View style={styles.evDateWrap}>
+                  <WText style={styles.evFormLabel}>תאריך</WText>
+                  <TextInput
+                    style={styles.evTextInput}
+                    placeholder="DD/MM/YYYY"
+                    placeholderTextColor={Colors.placeholder}
+                    value={evDate}
+                    onChangeText={(t) => setEvDate(formatDateInput(t, evDate))}
+                    keyboardType="number-pad"
+                    maxLength={10}
+                    textAlign="right"
+                  />
+                </View>
+                <View style={styles.evTimeWrap}>
+                  <WText style={styles.evFormLabel}>שעה</WText>
+                  <TextInput
+                    style={styles.evTextInput}
+                    placeholder="HH:MM"
+                    placeholderTextColor={Colors.placeholder}
+                    value={evTime}
+                    onChangeText={(t) => setEvTime(formatTimeInput(t, evTime))}
+                    keyboardType="number-pad"
+                    maxLength={5}
+                    textAlign="right"
+                  />
+                </View>
+              </View>
+
+              {/* Location */}
+              <View style={styles.evInputWrap}>
+                <WText style={styles.evFormLabel}>מיקום</WText>
+                <TextInput
+                  style={styles.evTextInput}
+                  placeholder="איפה מתקיים האירוע?"
+                  placeholderTextColor={Colors.placeholder}
+                  value={evLocation}
+                  onChangeText={setEvLocation}
+                  textAlign="right"
+                  maxLength={100}
+                />
+              </View>
+
+              {/* Description */}
+              <View style={styles.evInputWrap}>
+                <WText style={styles.evFormLabel}>תיאור (אופציונלי)</WText>
+                <TextInput
+                  style={[styles.evTextInput, styles.evTextInputMulti]}
+                  placeholder="ספר על האירוע..."
+                  placeholderTextColor={Colors.placeholder}
+                  value={evDesc}
+                  onChangeText={setEvDesc}
+                  textAlign="right"
+                  multiline
+                  numberOfLines={4}
+                  maxLength={300}
+                  textAlignVertical="top"
+                />
+                <WText style={styles.evCharCount}>{evDesc.length}/300</WText>
+              </View>
+            </View>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -662,7 +973,7 @@ export const FeedScreen: React.FC = () => {
       onRequestClose={() => setSelectedEvent(null)}
     >
       <SafeAreaView style={styles.eventModalSafe} edges={['top', 'bottom'] as any}>
-        {/* Forest header */}
+        {/* Colored header */}
         <View style={[styles.eventModalHeader, { backgroundColor: selectedEvent.color }]}>
           <TouchableOpacity onPress={() => setSelectedEvent(null)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
             <Ionicons name="close" size={26} color={Colors.white} />
@@ -674,11 +985,27 @@ export const FeedScreen: React.FC = () => {
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
           {/* Hero */}
           <View style={[styles.eventHero, { backgroundColor: selectedEvent.color }]}>
-            <Text style={styles.eventHeroEmoji}>{selectedEvent.emoji}</Text>
-            <WText style={styles.eventHeroTitle}>{selectedEvent.title}</WText>
-            <WText style={styles.eventHeroDate}>
-              {formatEventDate(selectedEvent.date)} · {selectedEvent.time}
-            </WText>
+            {selectedEvent.image && (
+              <>
+                <Image
+                  source={{ uri: selectedEvent.image }}
+                  style={[StyleSheet.absoluteFill as any, { zIndex: 0 }]}
+                  resizeMode="cover"
+                />
+                <View style={[StyleSheet.absoluteFill as any, { backgroundColor: 'rgba(0,0,0,0.35)', zIndex: 1 }]} />
+              </>
+            )}
+            <View style={{ zIndex: 2, alignItems: 'center' }}>
+              {!selectedEvent.image && (
+                <View style={[styles.eventHeroIconCircle, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+                  <EventIcon icon={selectedEvent.icon} lib={selectedEvent.lib} size={48} color={Colors.white} />
+                </View>
+              )}
+              <WText style={styles.eventHeroTitle}>{selectedEvent.title}</WText>
+              <WText style={styles.eventHeroDate}>
+                {formatEventDate(selectedEvent.date)} · {selectedEvent.time}
+              </WText>
+            </View>
           </View>
 
           {/* Details card */}
@@ -730,7 +1057,7 @@ export const FeedScreen: React.FC = () => {
 
             {/* CTA */}
             <WButton
-              label={selectedEvent.isAttending ? 'ביטול השתתפות' : '🐾 הצטרף לאירוע'}
+              label={selectedEvent.isAttending ? 'ביטול השתתפות' : 'הצטרף לאירוע'}
               onPress={() => handleJoinEvent(selectedEvent.id)}
               variant={selectedEvent.isAttending ? 'outline' : 'primary'}
               size="lg"
@@ -782,6 +1109,7 @@ export const FeedScreen: React.FC = () => {
 
       {CommentsModal}
       {CreatePostModal}
+      {CreateEventModal}
       {EventModal}
 
       <NotificationsModal
@@ -887,6 +1215,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.base,
     marginBottom: Spacing.md,
   },
+  evTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  evCreateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
   eventsSectionTitle: {
     fontFamily: FontFamily.bold,
     fontSize: FontSize.base,
@@ -911,8 +1249,8 @@ const styles = StyleSheet.create({
     height: 75,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
-  eventCardEmoji: { fontSize: 32 },
   eventDateChip: {
     position: 'absolute',
     top: Spacing.sm,
@@ -937,11 +1275,10 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   eventCardLocation: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 4,
     marginBottom: Spacing.sm,
-    flexDirection: 'row-reverse',
     justifyContent: 'flex-start',
   },
   eventCardLocationText: {
@@ -1039,7 +1376,8 @@ const styles = StyleSheet.create({
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.base, paddingVertical: Spacing.md, borderBottomWidth: 0.5, borderBottomColor: Colors.border },
   modalTitle: { fontFamily: FontFamily.bold, fontSize: FontSize.base, color: Colors.text },
   commentsListContent: { paddingHorizontal: Spacing.base, paddingTop: Spacing.md, paddingBottom: Spacing.xl, flexGrow: 1 },
-  emptyComments: { fontFamily: FontFamily.regular, fontSize: FontSize.base, color: Colors.gray, textAlign: 'center', marginTop: Spacing['2xl'] },
+  emptyCommentsWrap: { alignItems: 'center', paddingTop: Spacing['3xl'], gap: Spacing.md },
+  emptyComments: { fontFamily: FontFamily.regular, fontSize: FontSize.base, color: Colors.gray, textAlign: 'center' },
   commentRow: { flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.lg, alignItems: 'flex-start' },
   commentRowAvatar: { width: 38, height: 38, borderRadius: 19, backgroundColor: Colors.cream2, marginTop: 2 },
   commentBubble: { flex: 1, backgroundColor: Colors.cream, borderRadius: Radius.medium, padding: Spacing.md },
@@ -1072,6 +1410,82 @@ const styles = StyleSheet.create({
   captionInputField: { flex: 1, fontFamily: FontFamily.regular, fontSize: FontSize.base, color: Colors.text, textAlign: 'right', textAlignVertical: 'top', minHeight: 80, paddingTop: 0 },
   charCount: { fontFamily: FontFamily.regular, fontSize: FontSize.xs, color: Colors.placeholder, textAlign: 'left', paddingHorizontal: Spacing.base, paddingTop: Spacing.xs },
 
+  // Create event modal
+  evImagePickerArea: { width: SCREEN_W, height: 200, backgroundColor: Colors.cream2 },
+  evPickedImage: { width: SCREEN_W, height: 200 },
+  evImagePlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.sm },
+  evImagePlaceholderText: { fontFamily: FontFamily.semibold, fontSize: FontSize.base, color: Colors.gray },
+  evImagePlaceholderSub: { fontFamily: FontFamily.regular, fontSize: FontSize.sm, color: Colors.placeholder },
+  evFormSection: {
+    padding: Spacing.base,
+    backgroundColor: Colors.white,
+    gap: Spacing.xl,
+  },
+  evFormLabel: {
+    fontFamily: FontFamily.semibold,
+    fontSize: FontSize.sm,
+    color: Colors.forest,
+    textAlign: 'right',
+    marginBottom: Spacing.xs,
+  },
+  evCategoryRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  evCategoryChip: {
+    flex: 1,
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: Spacing.md,
+    borderRadius: Radius.medium,
+    backgroundColor: Colors.cream2,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+  },
+  evCategoryLabel: {
+    fontFamily: FontFamily.medium,
+    fontSize: 10,
+    color: Colors.gray,
+    textAlign: 'center',
+  },
+  evInputWrap: {
+    gap: 0,
+  },
+  evTextInput: {
+    backgroundColor: Colors.cream,
+    borderRadius: Radius.medium,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.base,
+    color: Colors.text,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  evTextInputError: { borderColor: Colors.error },
+  evTextInputMulti: { height: 100, textAlignVertical: 'top', paddingTop: Spacing.md },
+  evInputError: {
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.xs,
+    color: Colors.error,
+    textAlign: 'right',
+    marginTop: 4,
+  },
+  evDateTimeRow: {
+    flexDirection: 'row-reverse',
+    gap: Spacing.md,
+  },
+  evDateWrap: { flex: 2 },
+  evTimeWrap: { flex: 1 },
+  evCharCount: {
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.xs,
+    color: Colors.placeholder,
+    textAlign: 'left',
+    marginTop: 4,
+  },
+
   // Event details modal
   eventModalSafe: { flex: 1, backgroundColor: Colors.cream },
   eventModalHeader: {
@@ -1094,8 +1508,16 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.xl,
     paddingBottom: Spacing['2xl'] + Radius.large,
     paddingHorizontal: Spacing.xl,
+    overflow: 'hidden',
   },
-  eventHeroEmoji: { fontSize: 64, marginBottom: Spacing.md },
+  eventHeroIconCircle: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.md,
+  },
   eventHeroTitle: {
     fontFamily: FontFamily.displayBlack,
     fontSize: FontSize['2xl'],

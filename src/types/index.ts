@@ -69,7 +69,6 @@ export interface Notification {
   actorDogPhoto: string;
   text: string;
   postPhoto?: string;
-  eventEmoji?: string;
   isRead: boolean;
   createdAt: string;
 }
@@ -104,7 +103,9 @@ export interface Event {
   organizer: string;
   organizerDogPhoto: string;
   category: 'walk' | 'training' | 'meetup' | 'competition';
-  emoji: string;
+  icon: string;
+  lib: 'ion' | 'mci';
+  image?: string;
   color: string;
   attendees: number;
   maxAttendees?: number;
