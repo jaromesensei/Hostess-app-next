@@ -372,7 +372,9 @@ export const MapScreen: React.FC = () => {
         const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
         setUserLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
       } else {
+        // Default to Tel Aviv but show a subtle banner
         setUserLocation(TEL_AVIV);
+        setLocationGranted(false);
       }
     })();
   }, []);
@@ -443,6 +445,17 @@ export const MapScreen: React.FC = () => {
 
   const MapContent = (
     <View style={styles.mapContainer}>
+      {/* Location permission banner */}
+      {!locationGranted && userLocation && (
+        <TouchableOpacity
+          style={styles.locationBanner}
+          onPress={() => Location.requestForegroundPermissionsAsync()}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="location-outline" size={15} color={Colors.white} />
+          <WText style={styles.locationBannerText}>מציג תל אביב — הרשה גישה למיקום לתוצאות מדויקות</WText>
+        </TouchableOpacity>
+      )}
       <MapView
         style={styles.map}
         initialRegion={{ ...center, latitudeDelta: 0.05, longitudeDelta: 0.05 }}
@@ -516,7 +529,9 @@ export const MapScreen: React.FC = () => {
       </View>
 
       {/* Results count */}
-      <WText style={styles.svcCount}>{filteredServices.length} נותני שירות</WText>
+      {filteredServices.length > 0 && (
+        <WText style={styles.svcCount}>{filteredServices.length} נותני שירות</WText>
+      )}
 
       {/* Provider list */}
       <FlatList
@@ -529,9 +544,20 @@ export const MapScreen: React.FC = () => {
             onBook={() => handleBook(item)}
           />
         )}
-        contentContainerStyle={styles.svcList}
+        contentContainerStyle={filteredServices.length === 0 ? styles.svcListEmpty : styles.svcList}
         showsVerticalScrollIndicator={false}
         ItemSeparatorComponent={() => <View style={{ height: Spacing.md }} />}
+        ListEmptyComponent={(
+          <View style={styles.svcEmpty}>
+            <View style={styles.svcEmptyIconCircle}>
+              <SvcIcon category={svcCategory} size={36} color={Colors.gray} />
+            </View>
+            <WText style={styles.svcEmptyTitle}>אין נותני שירות</WText>
+            <WText style={styles.svcEmptySub}>
+              לא נמצאו תוצאות לקטגוריה זו.{'\n'}נסה קטגוריה אחרת.
+            </WText>
+          </View>
+        )}
       />
 
       {/* Provider detail modal */}
@@ -584,6 +610,27 @@ const styles = StyleSheet.create({
 
   // Map
   mapContainer: { flex: 1 },
+  locationBanner: {
+    position: 'absolute',
+    top: Spacing.sm,
+    left: Spacing.base,
+    right: Spacing.base,
+    zIndex: 20,
+    backgroundColor: Colors.forest,
+    borderRadius: Radius.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm + 2,
+    gap: Spacing.sm,
+  },
+  locationBannerText: {
+    flex: 1,
+    fontFamily: FontFamily.medium,
+    fontSize: FontSize.xs,
+    color: Colors.white,
+    textAlign: 'right',
+  },
   map: { flex: 1 },
   filterBar: { position: 'absolute', top: 8, left: 16, right: 16 },
   filterContent: { flexDirection: 'row', gap: 8, paddingVertical: 2 },
@@ -659,6 +706,36 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   svcList: { paddingHorizontal: Spacing.base, paddingBottom: Spacing['2xl'] },
+  svcListEmpty: { flex: 1, paddingHorizontal: Spacing.base },
+  svcEmpty: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: Spacing['3xl'],
+    gap: Spacing.md,
+  },
+  svcEmptyIconCircle: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: Colors.cream2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.sm,
+  },
+  svcEmptyTitle: {
+    fontFamily: FontFamily.bold,
+    fontSize: FontSize.lg,
+    color: Colors.forest,
+    textAlign: 'center',
+  },
+  svcEmptySub: {
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.sm,
+    color: Colors.gray,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
 
   // Service card
   serviceCard: {

@@ -182,9 +182,18 @@ export const OnboardingStep4: React.FC = () => {
 
             {/* Personality tags */}
             <View style={styles.section}>
-              <WText variant="captionMedium" color={Colors.gray} style={styles.sectionLabel}>
-                אישיות (ניתן לבחור כמה)
-              </WText>
+              <View style={styles.sectionLabelRow}>
+                <WText variant="captionMedium" color={Colors.gray}>
+                  אישיות (ניתן לבחור כמה)
+                </WText>
+                {personality.length > 0 && (
+                  <View style={styles.countBadge}>
+                    <WText variant="caption" color={Colors.white} style={styles.countBadgeText}>
+                      {personality.length}
+                    </WText>
+                  </View>
+                )}
+              </View>
               <View style={styles.tagsWrap}>
                 {PERSONALITY_TAGS.map((tag) => (
                   <WTag
@@ -320,6 +329,25 @@ const styles = StyleSheet.create({
   sectionLabel: {
     textAlign: 'right',
     marginBottom: Spacing.md,
+  },
+  sectionLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  countBadge: {
+    backgroundColor: Colors.terra,
+    borderRadius: Radius.pill,
+    minWidth: 22,
+    height: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.xs,
+  },
+  countBadgeText: {
+    lineHeight: 14,
   },
   energyRow: {
     flexDirection: 'row',

@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   TextInput,
   TextInputProps,
   View,
   StyleSheet,
   TouchableOpacity,
+  Animated,
 } from 'react-native';
 import { Colors, Radius, Spacing, FontFamily, FontSize } from '@/theme';
 import { WText } from './Text';
@@ -27,6 +28,23 @@ export const WInput: React.FC<InputProps> = ({
   ...props
 }) => {
   const [focused, setFocused] = useState(false);
+  const errorOpacity  = useRef(new Animated.Value(0)).current;
+  const errorTranslateY = useRef(new Animated.Value(-4)).current;
+
+  // Animate error message in/out
+  useEffect(() => {
+    if (error) {
+      Animated.parallel([
+        Animated.timing(errorOpacity, { toValue: 1, duration: 220, useNativeDriver: true }),
+        Animated.spring(errorTranslateY, { toValue: 0, damping: 16, stiffness: 200, useNativeDriver: true }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(errorOpacity, { toValue: 0, duration: 150, useNativeDriver: true }),
+        Animated.timing(errorTranslateY, { toValue: -4, duration: 150, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [error]);
 
   return (
     <View style={styles.wrapper}>
@@ -43,7 +61,11 @@ export const WInput: React.FC<InputProps> = ({
         ]}
       >
         {suffix && (
-          <TouchableOpacity onPress={onSuffixPress} style={styles.suffix}>
+          <TouchableOpacity
+            onPress={onSuffixPress}
+            style={styles.suffix}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
             {suffix}
           </TouchableOpacity>
         )}
@@ -57,11 +79,13 @@ export const WInput: React.FC<InputProps> = ({
         />
         {prefix && <View style={styles.prefix}>{prefix}</View>}
       </View>
-      {error && (
-        <WText variant="caption" color={Colors.error} style={styles.error}>
-          {error}
-        </WText>
-      )}
+      <Animated.View style={{ opacity: errorOpacity, transform: [{ translateY: errorTranslateY }] }}>
+        {error ? (
+          <WText variant="caption" color={Colors.error} style={styles.error}>
+            {error}
+          </WText>
+        ) : null}
+      </Animated.View>
     </View>
   );
 };
@@ -90,6 +114,7 @@ const styles = StyleSheet.create({
   },
   containerError: {
     borderColor: Colors.error,
+    backgroundColor: Colors.white,
   },
   input: {
     flex: 1,

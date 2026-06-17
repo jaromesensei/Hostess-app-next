@@ -18,6 +18,7 @@ export const Colors = {
   secondary: '#2C4A3E',
   secondaryLight: '#3D6B5C',
   accent: '#F5C842',
+  pink: '#E91E8C',
   background: '#FDFAF6',
   card: '#FFFFFF',
   textSecondary: '#8A8A9A',

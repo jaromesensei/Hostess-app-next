@@ -350,7 +350,7 @@ export const OnboardingStep2: React.FC = () => {
                       onPress={async () => { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setGender('female'); setGenderError(''); }}
                       activeOpacity={0.8}
                     >
-                      <Ionicons name="female" size={18} color={gender === 'female' ? Colors.white : '#E91E8C'} />
+                      <Ionicons name="female" size={18} color={gender === 'female' ? Colors.white : Colors.pink} />
                       <WText style={[styles.genderChipText, gender === 'female' && styles.genderChipTextSelected]}>נקבה</WText>
                     </TouchableOpacity>
                   </View>
@@ -466,7 +466,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', gap: Spacing.sm,
   },
   genderChipSelected: { backgroundColor: Colors.terra, borderColor: Colors.terra },
-  genderChipSelectedFemale: { backgroundColor: '#E91E8C', borderColor: '#E91E8C' },
+  genderChipSelectedFemale: { backgroundColor: Colors.pink, borderColor: Colors.pink },
   genderChipText: { fontFamily: FontFamily.semibold, fontSize: FontSize.md, color: Colors.text },
   genderChipTextSelected: { color: Colors.white },
 

@@ -1,13 +1,14 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import {
-  TouchableOpacity,
+  Animated,
   StyleSheet,
   ActivityIndicator,
   ViewStyle,
   TextStyle,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { Colors, Radius, Shadow, FontFamily, FontSize } from '@/theme';
+import { Colors, Radius, Shadow, FontFamily, FontSize, Spacing } from '@/theme';
 import { WText } from './Text';
 
 type Variant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
@@ -38,6 +39,27 @@ export const WButton: React.FC<ButtonProps> = ({
   style,
   textStyle,
 }) => {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    if (disabled || loading) return;
+    Animated.spring(scaleAnim, {
+      toValue: 0.96,
+      damping: 10,
+      stiffness: 300,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      damping: 14,
+      stiffness: 200,
+      useNativeDriver: true,
+    }).start();
+  };
+
   const handlePress = async () => {
     if (disabled || loading) return;
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -45,40 +67,46 @@ export const WButton: React.FC<ButtonProps> = ({
   };
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.82}
+    <TouchableWithoutFeedback
       onPress={handlePress}
-      style={[
-        styles.base,
-        styles[variant],
-        styles[`size_${size}`],
-        fullWidth && styles.fullWidth,
-        (disabled || loading) && styles.disabled,
-        style,
-      ]}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      disabled={disabled || loading}
     >
-      {loading ? (
-        <ActivityIndicator
-          color={variant === 'outline' || variant === 'ghost' ? Colors.terra : Colors.white}
-          size="small"
-        />
-      ) : (
-        <>
-          {icon}
-          <WText
-            style={[
-              styles.label,
-              styles[`labelVariant_${variant}`],
-              styles[`labelSize_${size}`],
-              icon ? { marginRight: 8 } : undefined,
-              textStyle,
-            ]}
-          >
-            {label}
-          </WText>
-        </>
-      )}
-    </TouchableOpacity>
+      <Animated.View
+        style={[
+          styles.base,
+          styles[variant],
+          styles[`size_${size}`],
+          fullWidth && styles.fullWidth,
+          (disabled || loading) && styles.disabled,
+          { transform: [{ scale: scaleAnim }] },
+          style,
+        ]}
+      >
+        {loading ? (
+          <ActivityIndicator
+            color={variant === 'outline' || variant === 'ghost' ? Colors.terra : Colors.white}
+            size="small"
+          />
+        ) : (
+          <>
+            {icon}
+            <WText
+              style={[
+                styles.label,
+                styles[`labelVariant_${variant}`],
+                styles[`labelSize_${size}`],
+                icon ? { marginRight: Spacing.sm } : undefined,
+                textStyle,
+              ]}
+            >
+              {label}
+            </WText>
+          </>
+        )}
+      </Animated.View>
+    </TouchableWithoutFeedback>
   );
 };
 
@@ -94,7 +122,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   disabled: {
-    opacity: 0.48,
+    opacity: 0.42,
   },
 
   // Variants
@@ -120,20 +148,20 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.error,
   },
 
-  // Sizes
+  // Sizes — use Spacing tokens
   size_sm: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
+    paddingVertical: Spacing.sm + 2,
+    paddingHorizontal: Spacing.xl,
     minHeight: 40,
   },
   size_md: {
-    paddingVertical: 14,
-    paddingHorizontal: 28,
+    paddingVertical: Spacing.md + 2,
+    paddingHorizontal: Spacing['2xl'] - 4,
     minHeight: 50,
   },
   size_lg: {
-    paddingVertical: 18,
-    paddingHorizontal: 36,
+    paddingVertical: Spacing.lg - 2,
+    paddingHorizontal: Spacing['2xl'] + 4,
     minHeight: 58,
   },
 
@@ -144,11 +172,11 @@ const styles = StyleSheet.create({
   },
 
   // Label by variant
-  labelVariant_primary: { color: Colors.white },
+  labelVariant_primary:   { color: Colors.white },
   labelVariant_secondary: { color: Colors.white },
-  labelVariant_outline: { color: Colors.terra },
-  labelVariant_ghost: { color: Colors.terra },
-  labelVariant_danger: { color: Colors.white },
+  labelVariant_outline:   { color: Colors.terra },
+  labelVariant_ghost:     { color: Colors.terra },
+  labelVariant_danger:    { color: Colors.white },
 
   // Label by size
   labelSize_sm: { fontSize: FontSize.sm },

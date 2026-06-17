@@ -46,7 +46,7 @@ const LOOKING_FOR_OPTIONS: LookingForCard[] = [
   },
   {
     value: 'breeding',
-    icon: 'heart', lib: 'ion', color: '#E91E8C',
+    icon: 'heart', lib: 'ion', color: Colors.pink,
     title: 'זיווג אחראי',
     description: 'רק עם בדיקות בריאות מאושרות',
   },
