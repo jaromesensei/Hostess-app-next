@@ -167,19 +167,26 @@ export const HomeScreen: React.FC = () => {
           {reminders.length === 0 ? (
             <View style={styles.noRemindersRow}>
               <View style={styles.noRemindersPill}>
-                <WText style={styles.noRemindersText}>אין תזכורות להיום</WText>
+                <Ionicons name="checkmark-circle-outline" size={14} color={Colors.terra} style={{ marginLeft: 5 }} />
+                <WText style={styles.noRemindersText}>הכל בסדר להיום</WText>
               </View>
             </View>
           ) : (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.remindersRow}
-            >
-              {reminders.map(reminder => (
-                <ReminderCard key={reminder.id} reminder={reminder} />
-              ))}
-            </ScrollView>
+            <View style={styles.remindersWrap}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.remindersRow}
+              >
+                {reminders.map(reminder => (
+                  <ReminderCard key={reminder.id} reminder={reminder} />
+                ))}
+              </ScrollView>
+              {/* Right edge fade to hint at more content */}
+              {reminders.length > 2 && (
+                <View style={styles.remindersEdgeFade} pointerEvents="none" />
+              )}
+            </View>
           )}
         </View>
 
@@ -187,9 +194,15 @@ export const HomeScreen: React.FC = () => {
         <View style={styles.section}>
           <View style={styles.sectionRow}>
             <WText style={styles.sectionTitle}>כלבים קרובים</WText>
-            <View style={styles.countPill}>
-              <WText style={styles.countText}>{shuffledDogs.length}</WText>
-            </View>
+            <TouchableOpacity
+              onPress={onRefresh}
+              style={styles.refreshBtn}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="refresh-outline" size={15} color={Colors.terra} />
+              <WText style={styles.refreshBtnText}>רענן</WText>
+            </TouchableOpacity>
           </View>
 
           {shuffledDogs.length === 0 ? (
@@ -309,22 +322,53 @@ const styles = StyleSheet.create({
   // ── No reminders
   noRemindersRow: { flexDirection: 'row' },
   noRemindersPill: {
-    backgroundColor: 'rgba(232,115,74,0.10)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(76,175,125,0.10)',
     borderRadius: Radius.pill,
     paddingHorizontal: Spacing.base,
     paddingVertical: Spacing.xs + 2,
+    gap: 4,
   },
   noRemindersText: {
     fontFamily: FontFamily.medium,
     fontSize: FontSize.sm,
-    color: Colors.terra,
+    color: Colors.success,
   },
 
   // ── Reminder cards
+  remindersWrap: {
+    position: 'relative',
+  },
   remindersRow: {
     flexDirection: 'row',
     gap: Spacing.md,
     paddingBottom: 4,
+  },
+  remindersEdgeFade: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    bottom: 4,
+    width: 36,
+    backgroundColor: Colors.cream,
+    opacity: 0.8,
+  },
+
+  // ── Refresh button
+  refreshBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.terraDim,
+  },
+  refreshBtnText: {
+    fontFamily: FontFamily.semibold,
+    fontSize: FontSize.xs,
+    color: Colors.terra,
   },
   reminderCard: {
     backgroundColor: Colors.white,

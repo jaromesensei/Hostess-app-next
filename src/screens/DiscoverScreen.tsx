@@ -234,21 +234,25 @@ const MatchModal = React.memo<MatchModalProps>(({ visible, matchedDog, myDog, on
       <View style={styles.matchOverlay}>
         <Animated.View style={{ opacity: titleOp, alignItems: 'center', marginBottom: Spacing['2xl'] }}>
           <WText style={styles.matchTitle}>זה מאץ׳!</WText>
-          <WText style={styles.matchSub}>תאמו טיול ביחד</WText>
+          <WText style={styles.matchSub}>שניכם רוצים טיול משותף</WText>
         </Animated.View>
 
         <View style={styles.matchAvatars}>
-          <Animated.Image
-            source={{ uri: myDog?.photos[0] ?? 'https://placedog.net/200/200?id=99' }}
-            style={[styles.matchAvatar, { transform: [{ scale: scale1 }] }]}
-          />
+          <View style={styles.matchAvatarWrap}>
+            <Animated.Image
+              source={{ uri: myDog?.photos[0] ?? 'https://placedog.net/200/200?id=99' }}
+              style={[styles.matchAvatar, { transform: [{ scale: scale1 }] }]}
+            />
+          </View>
           <View style={styles.matchPawWrap}>
             <MaterialCommunityIcons name="paw" size={28} color={Colors.terra} />
           </View>
-          <Animated.Image
-            source={{ uri: matchedDog.photos[0] }}
-            style={[styles.matchAvatar, { transform: [{ scale: scale2 }] }]}
-          />
+          <View style={styles.matchAvatarWrap}>
+            <Animated.Image
+              source={{ uri: matchedDog.photos[0] }}
+              style={[styles.matchAvatar, { transform: [{ scale: scale2 }] }]}
+            />
+          </View>
         </View>
 
         <WText style={styles.matchSubtitle}>
@@ -314,6 +318,17 @@ export const DiscoverScreen: React.FC = () => {
   const [showMatch, setShowMatch] = useState(false);
   const [matchedDog, setMatchedDog] = useState<Dog | null>(null);
   const swipeCountRef = useRef(0);
+
+  // Swipe hint — fades out after 2.5 s
+  const hintOpacity = useRef(new Animated.Value(1)).current;
+  const [hintVisible, setHintVisible] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      Animated.timing(hintOpacity, { toValue: 0, duration: 700, useNativeDriver: true })
+        .start(() => setHintVisible(false));
+    }, 2400);
+    return () => clearTimeout(t);
+  }, []);
 
   const allDogs = React.useMemo(
     () => shuffle(MOCK_DOGS.filter(d => d.id !== state.dog?.id)),
@@ -402,11 +417,16 @@ export const DiscoverScreen: React.FC = () => {
       <View style={styles.stack}>
         {done ? (
           <View style={styles.empty}>
-            <MaterialCommunityIcons name="paw" size={72} color={Colors.cream2} />
+            <View style={styles.emptyIconCircle}>
+              <MaterialCommunityIcons name="paw" size={44} color={Colors.gray} />
+            </View>
             <WText style={styles.emptyTitle}>ראית את כולם!</WText>
-            <WText style={styles.emptySub}>בדוק שוב מחר</WText>
+            <WText style={styles.emptySub}>
+              עברת על {filtered.length} כלבים.{'\n'}בדוק שוב מחר לכלבים חדשים.
+            </WText>
             <TouchableOpacity style={styles.resetBtn} onPress={handleReset} activeOpacity={0.85}>
-              <WText style={styles.resetBtnText}>רענן</WText>
+              <Ionicons name="refresh" size={16} color={Colors.white} />
+              <WText style={styles.resetBtnText}>רענן רשימה</WText>
             </TouchableOpacity>
           </View>
         ) : (
@@ -435,6 +455,22 @@ export const DiscoverScreen: React.FC = () => {
                   onSwipeUp={handleUp}
                   isTop
                 />
+                {/* Swipe direction hint — fades out after first few seconds */}
+                {hintVisible && (
+                  <Animated.View style={[styles.hintOverlay, { opacity: hintOpacity }]} pointerEvents="none">
+                    <View style={styles.hintRow}>
+                      <View style={styles.hintChipNope}>
+                        <Ionicons name="close" size={14} color={Colors.error} />
+                        <WText style={styles.hintTextNope}>דלג</WText>
+                      </View>
+                      <View style={styles.hintChipLike}>
+                        <WText style={styles.hintTextLike}>נצא?</WText>
+                        <MaterialCommunityIcons name="paw" size={14} color={Colors.success} />
+                      </View>
+                    </View>
+                    <WText style={styles.hintCenter}>החלק ימינה או שמאלה</WText>
+                  </Animated.View>
+                )}
               </View>
             )}
           </>
@@ -444,17 +480,26 @@ export const DiscoverScreen: React.FC = () => {
       {/* ── Action buttons ──────────────────────────────────────────────────── */}
       {!done && current && (
         <View style={styles.actions}>
-          <ActionBtn onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); handleLeft(); }} size={58} bg={Colors.white}>
-            <Ionicons name="close" size={28} color={Colors.error} />
-          </ActionBtn>
+          <View style={styles.actionItem}>
+            <ActionBtn onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); handleLeft(); }} size={58} bg={Colors.white}>
+              <Ionicons name="close" size={28} color={Colors.error} />
+            </ActionBtn>
+            <WText style={styles.actionLabel}>דלג</WText>
+          </View>
 
-          <ActionBtn onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); handleUp(); }} size={52} bg={Colors.yellow}>
-            <Ionicons name="star" size={24} color={Colors.white} />
-          </ActionBtn>
+          <View style={styles.actionItem}>
+            <ActionBtn onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); handleUp(); }} size={52} bg={Colors.yellow}>
+              <Ionicons name="star" size={24} color={Colors.white} />
+            </ActionBtn>
+            <WText style={[styles.actionLabel, { color: '#D4A017' }]}>סופר</WText>
+          </View>
 
-          <ActionBtn onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleRight(); }} size={68} bg={Colors.terra}>
-            <MaterialCommunityIcons name="paw" size={30} color={Colors.white} />
-          </ActionBtn>
+          <View style={styles.actionItem}>
+            <ActionBtn onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleRight(); }} size={68} bg={Colors.terra}>
+              <MaterialCommunityIcons name="paw" size={30} color={Colors.white} />
+            </ActionBtn>
+            <WText style={[styles.actionLabel, { color: Colors.terra }]}>נצא?</WText>
+          </View>
         </View>
       )}
 
@@ -617,10 +662,19 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     paddingVertical: Spacing.base,
     paddingBottom: Spacing.xl,
     gap: Spacing.xl,
+  },
+  actionItem: {
+    alignItems: 'center',
+    gap: 6,
+  },
+  actionLabel: {
+    fontFamily: FontFamily.semibold,
+    fontSize: FontSize.xs,
+    color: Colors.gray,
   },
   actionBtn: {
     alignItems: 'center',
@@ -628,20 +682,94 @@ const styles = StyleSheet.create({
     ...Shadow.md,
   },
 
+  // Swipe hint overlay
+  hintOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingBottom: Spacing['2xl'],
+    zIndex: 20,
+  },
+  hintRow: {
+    flexDirection: 'row',
+    width: '100%',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.base,
+    marginBottom: Spacing.sm,
+  },
+  hintChipNope: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(232,93,74,0.15)',
+    borderRadius: Radius.full,
+    borderWidth: 1.5,
+    borderColor: Colors.error,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+  },
+  hintChipLike: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(76,175,125,0.15)',
+    borderRadius: Radius.full,
+    borderWidth: 1.5,
+    borderColor: Colors.success,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+  },
+  hintTextNope: {
+    fontFamily: FontFamily.bold,
+    fontSize: FontSize.sm,
+    color: Colors.error,
+  },
+  hintTextLike: {
+    fontFamily: FontFamily.bold,
+    fontSize: FontSize.sm,
+    color: Colors.success,
+  },
+  hintCenter: {
+    fontFamily: FontFamily.medium,
+    fontSize: FontSize.xs,
+    color: 'rgba(255,255,255,0.65)',
+    textAlign: 'center',
+  },
+
   // Empty state
-  empty: { alignItems: 'center', gap: Spacing.md },
+  empty: { alignItems: 'center', gap: Spacing.md, paddingHorizontal: Spacing.xl },
+  emptyIconCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: Colors.cream2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.sm,
+    ...Shadow.sm,
+  },
   emptyTitle: {
     fontFamily: FontFamily.displayBlack,
     fontSize: FontSize['2xl'],
     color: Colors.forest,
   },
-  emptySub: { fontFamily: FontFamily.regular, fontSize: FontSize.base, color: Colors.textSecondary },
+  emptySub: {
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.base,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
   resetBtn: {
     marginTop: Spacing.sm,
     backgroundColor: Colors.terra,
     borderRadius: Radius.full,
     paddingHorizontal: Spacing['2xl'],
     paddingVertical: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    ...Shadow.md,
   },
   resetBtnText: {
     fontFamily: FontFamily.bold,
@@ -671,13 +799,23 @@ const styles = StyleSheet.create({
   matchAvatars: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.lg,
+    gap: Spacing.md,
     marginBottom: Spacing.xl,
   },
+  matchAvatarWrap: {
+    width: 108,
+    height: 108,
+    borderRadius: 54,
+    backgroundColor: 'rgba(232,115,74,0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(232,115,74,0.40)',
+  },
   matchAvatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
     borderWidth: 3,
     borderColor: Colors.terra,
   },
@@ -685,9 +823,11 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(255,255,255,0.14)',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.20)',
   },
   matchSubtitle: {
     fontFamily: FontFamily.medium,

@@ -129,6 +129,16 @@ export const ChatScreen: React.FC = () => {
   const [inputText, setInputText] = useState('');
   const [isTyping,  setIsTyping]  = useState(false);
   const flatRef = useRef<FlatList>(null);
+  const sendScale = useRef(new Animated.Value(0.85)).current;
+
+  useEffect(() => {
+    Animated.spring(sendScale, {
+      toValue: inputText.trim() ? 1 : 0.85,
+      damping: 12,
+      stiffness: 200,
+      useNativeDriver: true,
+    }).start();
+  }, [inputText]);
 
   useEffect(() => {
     if (match) markMatchRead(matchId);
@@ -284,9 +294,23 @@ export const ChatScreen: React.FC = () => {
           ItemSeparatorComponent={() => <View style={{ height: Spacing.xs }} />}
           ListEmptyComponent={(
             <View style={styles.emptyChat}>
-              <WAvatar uri={match.dog.photos?.[0] ?? null} size={72} />
+              <View style={styles.emptyChatAvatarRing}>
+                <WAvatar uri={match.dog.photos?.[0] ?? null} size={80} online={online} />
+              </View>
               <WText style={styles.emptyChatName}>{match.dog.name}</WText>
-              <WText style={styles.emptyChatSub}>שלח הודעה ראשונה</WText>
+              <WText style={styles.emptyChatSub}>אתם מתאימים! שלחו הודעה ראשונה</WText>
+              <View style={styles.emptyChatChips}>
+                {['היי! נחמד להכיר', 'מה מספרת הכלבה?', 'בא לנו לטייל ביחד'].map(s => (
+                  <TouchableOpacity
+                    key={s}
+                    style={styles.suggestionChip}
+                    onPress={() => setInputText(s)}
+                    activeOpacity={0.75}
+                  >
+                    <WText style={styles.suggestionText}>{s}</WText>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
           )}
         />
@@ -305,14 +329,16 @@ export const ChatScreen: React.FC = () => {
             onSubmitEditing={handleSend}
             blurOnSubmit={false}
           />
-          <TouchableOpacity
-            style={[styles.sendBtn, !inputText.trim() && styles.sendBtnDisabled]}
-            onPress={handleSend}
-            disabled={!inputText.trim()}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="send" size={18} color={Colors.white} style={{ transform: [{ scaleX: -1 }] }} />
-          </TouchableOpacity>
+          <Animated.View style={{ transform: [{ scale: sendScale }] }}>
+            <TouchableOpacity
+              style={[styles.sendBtn, !inputText.trim() && styles.sendBtnDisabled]}
+              onPress={handleSend}
+              disabled={!inputText.trim()}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="send" size={18} color={Colors.white} style={{ transform: [{ scaleX: -1 }] }} />
+            </TouchableOpacity>
+          </Animated.View>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -370,9 +396,30 @@ const styles = StyleSheet.create({
   sepText: { fontFamily: FontFamily.regular, fontSize: FontSize.xs, color: Colors.textSecondary, backgroundColor: Colors.background, paddingHorizontal: 10, paddingVertical: 3, borderRadius: Radius.full },
 
   // Empty chat
-  emptyChat: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing['3xl'], gap: Spacing.md },
+  emptyChat: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing['3xl'], gap: Spacing.md, paddingHorizontal: Spacing.xl },
+  emptyChatAvatarRing: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    borderWidth: 2.5,
+    borderColor: Colors.terra,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.terraDim,
+  },
   emptyChatName: { fontFamily: FontFamily.bold, fontSize: FontSize.lg, color: Colors.text },
-  emptyChatSub: { fontFamily: FontFamily.regular, fontSize: FontSize.sm, color: Colors.textSecondary },
+  emptyChatSub: { fontFamily: FontFamily.regular, fontSize: FontSize.sm, color: Colors.textSecondary, textAlign: 'center' },
+  emptyChatChips: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: Spacing.sm, marginTop: Spacing.sm },
+  suggestionChip: {
+    backgroundColor: Colors.white,
+    borderRadius: Radius.full,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs + 2,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    ...Shadow.sm,
+  },
+  suggestionText: { fontFamily: FontFamily.medium, fontSize: FontSize.sm, color: Colors.forest },
 
   // Input bar
   inputBar: {

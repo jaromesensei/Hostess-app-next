@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import {
   View,
   FlatList,
@@ -66,22 +66,45 @@ const deleteAction = StyleSheet.create({
 
 // ─── New Match bubble (horizontal scroll) ─────────────────────────────────────
 
-const NewMatchBubble: React.FC<{ match: Match; onPress: () => void }> = ({ match, onPress }) => (
-  <TouchableOpacity style={bubble.wrap} onPress={onPress} activeOpacity={0.8}>
-    <View style={bubble.ring}>
-      <Image source={{ uri: match.dog.photos?.[0] }} style={bubble.avatar} />
-      {isOnline(match.id) && <View style={bubble.onlineDot} />}
-    </View>
-    <WText style={bubble.name} numberOfLines={1}>{match.dog.name}</WText>
-    <WText style={bubble.sub}>לחץ לשלוח</WText>
-  </TouchableOpacity>
-);
+const NewMatchBubble: React.FC<{ match: Match; onPress: () => void }> = ({ match, onPress }) => {
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (!isOnline(match.id)) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.5, duration: 900, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [match.id]);
+
+  return (
+    <TouchableOpacity style={bubble.wrap} onPress={onPress} activeOpacity={0.8}>
+      <View style={bubble.ring}>
+        <Image source={{ uri: match.dog.photos?.[0] }} style={bubble.avatar} />
+        {isOnline(match.id) && (
+          <View style={bubble.onlineDotWrap}>
+            <Animated.View style={[bubble.onlinePulse, { transform: [{ scale: pulseAnim }] }]} />
+            <View style={bubble.onlineDot} />
+          </View>
+        )}
+      </View>
+      <WText style={bubble.name} numberOfLines={1}>{match.dog.name}</WText>
+      <WText style={bubble.sub}>הקש לצ'אט</WText>
+    </TouchableOpacity>
+  );
+};
 
 const bubble = StyleSheet.create({
   wrap:      { alignItems: 'center', width: 72 },
   ring:      { width: 68, height: 68, borderRadius: 34, borderWidth: 2.5, borderColor: Colors.terra, position: 'relative' },
   avatar:    { width: 63, height: 63, borderRadius: 31.5, margin: 2.5 - 0.5, backgroundColor: Colors.cream2 },
-  onlineDot: { position: 'absolute', bottom: 2, right: 2, width: 13, height: 13, borderRadius: 7, backgroundColor: Colors.success, borderWidth: 2, borderColor: Colors.white },
+  onlineDotWrap: { position: 'absolute', bottom: 2, right: 2, alignItems: 'center', justifyContent: 'center' },
+  onlineDot:  { width: 13, height: 13, borderRadius: 7, backgroundColor: Colors.success, borderWidth: 2, borderColor: Colors.white },
+  onlinePulse: { position: 'absolute', width: 13, height: 13, borderRadius: 7, backgroundColor: Colors.success, opacity: 0.35 },
   name:      { fontFamily: FontFamily.semibold, fontSize: FontSize.xs, color: Colors.text, marginTop: 5, textAlign: 'center' },
   sub:       { fontFamily: FontFamily.regular, fontSize: 9, color: Colors.gray, textAlign: 'center' },
 });

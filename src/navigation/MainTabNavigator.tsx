@@ -1,12 +1,12 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
 import { MainTabParamList } from '@/types';
-import { Colors, FontFamily, Shadow } from '@/theme';
+import { Colors, FontFamily, Shadow, Spacing } from '@/theme';
 import { WText } from '@/components/ui';
 import { useApp } from '@/context/AppContext';
 
@@ -35,6 +35,76 @@ const TAB_ITEMS: TabItem[] = [
   { name: 'Messages', label: 'הודעות',   icon: 'chatbubble-outline', iconFocused: 'chatbubble' },
 ];
 
+// ─── Animated tab item ────────────────────────────────────────────────────────
+
+interface AnimatedTabProps {
+  item: TabItem;
+  focused: boolean;
+  unread: number;
+  onPress: () => void;
+}
+
+const AnimatedTabItem: React.FC<AnimatedTabProps> = ({ item, focused, unread, onPress }) => {
+  const iconScale   = useRef(new Animated.Value(focused ? 1 : 0.88)).current;
+  const pillWidth   = useRef(new Animated.Value(focused ? 28 : 0)).current;
+  const pillOpacity = useRef(new Animated.Value(focused ? 1 : 0)).current;
+
+  useEffect(() => {
+    if (focused) {
+      Animated.parallel([
+        Animated.spring(iconScale, { toValue: 1.1, damping: 8, stiffness: 250, useNativeDriver: true }),
+        Animated.timing(pillWidth, { toValue: 28, duration: 220, useNativeDriver: false }),
+        Animated.timing(pillOpacity, { toValue: 1, duration: 220, useNativeDriver: false }),
+      ]).start(() => {
+        Animated.spring(iconScale, { toValue: 1, damping: 12, stiffness: 200, useNativeDriver: true }).start();
+      });
+    } else {
+      Animated.parallel([
+        Animated.spring(iconScale, { toValue: 0.88, damping: 14, stiffness: 200, useNativeDriver: true }),
+        Animated.timing(pillWidth, { toValue: 0, duration: 180, useNativeDriver: false }),
+        Animated.timing(pillOpacity, { toValue: 0, duration: 180, useNativeDriver: false }),
+      ]).start();
+    }
+  }, [focused]);
+
+  return (
+    <TouchableOpacity
+      style={styles.tabItem}
+      onPress={() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        onPress();
+      }}
+      activeOpacity={0.7}
+    >
+      {/* Active pill indicator */}
+      <Animated.View style={[styles.activePill, { width: pillWidth, opacity: pillOpacity }]} />
+
+      {/* Icon with scale animation */}
+      <Animated.View style={{ transform: [{ scale: iconScale }] }}>
+        <Ionicons
+          name={focused ? item.iconFocused : item.icon}
+          size={25}
+          color={focused ? Colors.forest : Colors.gray}
+        />
+      </Animated.View>
+
+      {/* Label */}
+      <WText style={[styles.label, focused ? styles.labelActive : styles.labelInactive]}>
+        {item.label}
+      </WText>
+
+      {/* Unread badge */}
+      {unread > 0 && (
+        <View style={styles.badge}>
+          <WText style={styles.badgeText}>{unread > 9 ? '9+' : unread}</WText>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+};
+
+// ─── Navigator ────────────────────────────────────────────────────────────────
+
 export const MainTabNavigator: React.FC = () => {
   const insets = useSafeAreaInsets();
   const { unreadMatchCount } = useApp();
@@ -48,37 +118,13 @@ export const MainTabNavigator: React.FC = () => {
             const focused = state.index === index;
             const unread = item.name === 'Messages' ? unreadMatchCount() : 0;
             return (
-              <TouchableOpacity
+              <AnimatedTabItem
                 key={item.name}
-                style={styles.tabItem}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  navigation.navigate(item.name as string);
-                }}
-                activeOpacity={0.7}
-              >
-                {/* Active pill indicator */}
-                <View style={[styles.activePill, focused && styles.activePillVisible]} />
-
-                {/* Icon */}
-                <Ionicons
-                  name={focused ? item.iconFocused : item.icon}
-                  size={25}
-                  color={focused ? Colors.forest : Colors.gray}
-                />
-
-                {/* Label */}
-                <WText style={[styles.label, focused ? styles.labelActive : styles.labelInactive]}>
-                  {item.label}
-                </WText>
-
-                {/* Unread badge */}
-                {unread > 0 && (
-                  <View style={styles.badge}>
-                    <WText style={styles.badgeText}>{unread > 9 ? '9+' : unread}</WText>
-                  </View>
-                )}
-              </TouchableOpacity>
+                item={item}
+                focused={focused}
+                unread={unread}
+                onPress={() => navigation.navigate(item.name as string)}
+              />
             );
           })}
         </View>
@@ -111,15 +157,10 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   activePill: {
-    width: 28,
     height: 3,
     borderRadius: 2,
     backgroundColor: Colors.terra,
-    marginBottom: 8,
-    opacity: 0,
-  },
-  activePillVisible: {
-    opacity: 1,
+    marginBottom: 6,
   },
   label: {
     fontFamily: FontFamily.semibold,
