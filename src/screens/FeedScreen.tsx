@@ -24,6 +24,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Colors, FontFamily, FontSize, Spacing, Radius, Shadow } from '@/theme';
 import { WText } from '@/components/ui/Text';
 import { WButton } from '@/components/ui/Button';
+import { WAvatar } from '@/components/ui/Avatar';
 import { useApp } from '@/context/AppContext';
 import { Post, PostComment, Story, Event } from '@/types';
 import { MOCK_POSTS, MOCK_STORIES } from '@/data/mockFeed';
@@ -72,6 +73,12 @@ function timeAgo(iso: string): string {
   return `${Math.floor(d / 7)}שב׳`;
 }
 
+function mockDistance(postId: string): string {
+  const hash = postId.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+  const km = ((hash % 49) + 1) / 10;
+  return `${km.toFixed(1)} ק״מ ממך`;
+}
+
 function formatDateInput(raw: string, prev: string): string {
   const digits = raw.replace(/\D/g, '');
   const prevDigits = prev.replace(/\D/g, '');
@@ -116,18 +123,19 @@ const StoryItem = React.memo<StoryItemProps>(({ name, photo, seen, isAdd, onPres
     <View
       style={[
         styles.storyRing,
-        { borderColor: (isAdd || !seen) ? Colors.terra : Colors.border, borderWidth: (isAdd || !seen) ? 2.5 : 1.5 },
+        isAdd
+          ? styles.storyRingAdd
+          : { borderColor: !seen ? Colors.terra : Colors.border, borderWidth: !seen ? 2.5 : 1.5 },
       ]}
     >
-      {photo ? (
+      {isAdd ? (
+        <View style={styles.storyAddInner}>
+          <Ionicons name="add" size={28} color={Colors.terra} />
+        </View>
+      ) : photo ? (
         <Image source={{ uri: photo }} style={styles.storyAvatar} />
       ) : (
         <View style={[styles.storyAvatar, { backgroundColor: Colors.cream2 }]} />
-      )}
-      {isAdd && (
-        <View style={styles.storyAddBadge}>
-          <Ionicons name="add" size={11} color={Colors.white} />
-        </View>
       )}
     </View>
     <WText style={styles.storyName} numberOfLines={1}>{name}</WText>
@@ -215,12 +223,14 @@ function reportPost(dogName: string) {
 interface PostCardProps {
   post: Post;
   likeAnim: Animated.Value;
+  saved: boolean;
   onLike: (postId: string) => void;
+  onSave: (postId: string) => void;
   onCommentPress: (post: Post) => void;
   onAvatarPress: (post: Post) => void;
 }
 
-const PostCard = React.memo<PostCardProps>(({ post, likeAnim, onLike, onCommentPress, onAvatarPress }) => {
+const PostCard = React.memo<PostCardProps>(({ post, likeAnim, saved, onLike, onSave, onCommentPress, onAvatarPress }) => {
   const [captionExpanded, setCaptionExpanded] = useState(false);
   const shortened = post.caption.length > 88;
 
@@ -252,15 +262,8 @@ const PostCard = React.memo<PostCardProps>(({ post, likeAnim, onLike, onCommentP
 
   return (
     <Animated.View style={[styles.postCard, { opacity: mountAnim, transform: [{ translateY: mountTY }] }]}>
-      {/* Header */}
+      {/* Header — RTL: avatar+name on RIGHT, "..." on LEFT */}
       <View style={styles.postHeader}>
-        <TouchableOpacity style={styles.postHeaderLeft} activeOpacity={0.8} onPress={() => onAvatarPress(post)}>
-          <Image source={{ uri: post.dogPhoto }} style={styles.postAvatar} />
-          <View style={styles.postHeaderInfo}>
-            <WText style={styles.postDogName}>{post.dogName}</WText>
-            <WText style={styles.postMeta}>{timeAgo(post.createdAt)}</WText>
-          </View>
-        </TouchableOpacity>
         <TouchableOpacity
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           activeOpacity={0.6}
@@ -270,6 +273,13 @@ const PostCard = React.memo<PostCardProps>(({ post, likeAnim, onLike, onCommentP
           ])}
         >
           <Ionicons name="ellipsis-horizontal" size={20} color={Colors.gray} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.postHeaderRight} activeOpacity={0.8} onPress={() => onAvatarPress(post)}>
+          <View style={styles.postHeaderInfo}>
+            <WText style={styles.postDogName}>{post.dogName}</WText>
+            <WText style={styles.postMeta}>{mockDistance(post.id)}</WText>
+          </View>
+          <Image source={{ uri: post.dogPhoto }} style={styles.postAvatar} />
         </TouchableOpacity>
       </View>
 
@@ -287,9 +297,33 @@ const PostCard = React.memo<PostCardProps>(({ post, likeAnim, onLike, onCommentP
         </Animated.View>
       </TouchableOpacity>
 
-      {/* Actions */}
+      {/* Actions — RTL: heart+comment+share on RIGHT, bookmark on LEFT */}
       <View style={styles.actionsRow}>
-        <View style={styles.actionsLeft}>
+        {/* FAR LEFT: bookmark */}
+        <TouchableOpacity
+          style={styles.actionBtn}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onSave(post.id); }}
+          activeOpacity={0.75}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name={saved ? 'bookmark' : 'bookmark-outline'} size={24} color={saved ? Colors.terra : Colors.text} />
+        </TouchableOpacity>
+        {/* RIGHT group: heart, comment, share */}
+        <View style={styles.actionsRight}>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => onLike(post.id)} activeOpacity={0.75}>
+            <Animated.View style={{ transform: [{ scale: likeAnim }] }}>
+              <Ionicons
+                name={post.likedByMe ? 'heart' : 'heart-outline'}
+                size={26}
+                color={post.likedByMe ? Colors.terra : Colors.text}
+              />
+            </Animated.View>
+            {post.likes > 0 && (
+              <WText style={[styles.actionCount, post.likedByMe && styles.actionCountLiked]}>
+                {post.likes}
+              </WText>
+            )}
+          </TouchableOpacity>
           <TouchableOpacity style={styles.actionBtn} onPress={() => onCommentPress(post)} activeOpacity={0.75}>
             <Ionicons name="chatbubble-outline" size={24} color={Colors.text} />
             {post.comments.length > 0 && (
@@ -300,20 +334,6 @@ const PostCard = React.memo<PostCardProps>(({ post, likeAnim, onLike, onCommentP
             <Ionicons name="paper-plane-outline" size={23} color={Colors.text} style={styles.shareIcon} />
           </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => onLike(post.id)} activeOpacity={0.75}>
-          <Animated.View style={{ transform: [{ scale: likeAnim }] }}>
-            <Ionicons
-              name={post.likedByMe ? 'heart' : 'heart-outline'}
-              size={26}
-              color={post.likedByMe ? Colors.terra : Colors.text}
-            />
-          </Animated.View>
-          {post.likes > 0 && (
-            <WText style={[styles.actionCount, post.likedByMe && styles.actionCountLiked]}>
-              {post.likes}
-            </WText>
-          )}
-        </TouchableOpacity>
       </View>
 
       {/* Caption */}
@@ -356,10 +376,21 @@ export const FeedScreen: React.FC = () => {
   const [stories, setStories] = useState<Story[]>(MOCK_STORIES);
   const [events, setEvents] = useState<Event[]>(MOCK_EVENTS);
 
+  const [savedPosts, setSavedPosts] = useState<Set<string>>(new Set());
+
   const likeAnims = useRef<Record<string, Animated.Value>>({});
   const getLikeAnim = useCallback((id: string): Animated.Value => {
     if (!likeAnims.current[id]) likeAnims.current[id] = new Animated.Value(1);
     return likeAnims.current[id];
+  }, []);
+
+  const handleSave = useCallback((postId: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSavedPosts(prev => {
+      const next = new Set(prev);
+      next.has(postId) ? next.delete(postId) : next.add(postId);
+      return next;
+    });
   }, []);
 
   // Comments modal
@@ -631,11 +662,13 @@ export const FeedScreen: React.FC = () => {
     <PostCard
       post={item}
       likeAnim={getLikeAnim(item.id)}
+      saved={savedPosts.has(item.id)}
       onLike={handleLike}
+      onSave={handleSave}
       onCommentPress={handleCommentPress}
       onAvatarPress={handleAvatarPress}
     />
-  ), [getLikeAnim, handleLike, handleCommentPress, handleAvatarPress]);
+  ), [getLikeAnim, savedPosts, handleLike, handleSave, handleCommentPress, handleAvatarPress]);
 
   const listHeader = useMemo(() => (
     <View>
@@ -1073,29 +1106,30 @@ export const FeedScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top'] as any}>
-      {/* App bar */}
+      {/* App bar — RTL: Woofy wordmark on RIGHT, bell+avatar on LEFT */}
       <View style={styles.appBar}>
-        <TouchableOpacity onPress={() => setShowCreate(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Ionicons name="camera-outline" size={26} color={Colors.text} />
-        </TouchableOpacity>
-        <View style={styles.appLogoRow}>
-          <MaterialCommunityIcons name="paw" size={18} color={Colors.terra} />
-          <WText style={styles.appLogo}>Woofy</WText>
+        {/* RIGHT: wordmark */}
+        <WText style={styles.appLogo}>Woofy</WText>
+        {/* LEFT: notifications bell + user avatar */}
+        <View style={styles.appBarLeft}>
+          <TouchableOpacity
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            onPress={() => setShowNotifications(true)}
+            style={{ position: 'relative' }}
+          >
+            <Ionicons name="notifications-outline" size={26} color={Colors.text} />
+            {unreadNotifCount > 0 && (
+              <View style={styles.notifBadge}>
+                <WText style={styles.notifBadgeText}>
+                  {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
+                </WText>
+              </View>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setShowCreate(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <WAvatar uri={state.dog?.photos?.[0]} size={34} />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          onPress={() => setShowNotifications(true)}
-          style={{ position: 'relative' }}
-        >
-          <Ionicons name="heart-outline" size={26} color={Colors.text} />
-          {unreadNotifCount > 0 && (
-            <View style={styles.notifBadge}>
-              <WText style={styles.notifBadgeText}>
-                {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
-              </WText>
-            </View>
-          )}
-        </TouchableOpacity>
       </View>
 
       <FlatList
@@ -1122,7 +1156,7 @@ export const FeedScreen: React.FC = () => {
         onClose={() => setDogProfile(null)}
       />
 
-      <CameraFAB />
+      <CameraFAB centered onPress={() => setShowCreate(true)} />
     </SafeAreaView>
   );
 };
@@ -1144,15 +1178,15 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0.5,
     borderBottomColor: Colors.border,
   },
-  appLogoRow: {
+  appBarLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: Spacing.md,
   },
   appLogo: {
     fontFamily: FontFamily.displayBlack,
     fontSize: FontSize.xl,
-    color: Colors.forest,
+    color: Colors.primary,
     letterSpacing: -0.5,
   },
   notifBadge: {
@@ -1190,14 +1224,20 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     marginBottom: Spacing.xs,
   },
-  storyAvatar: { width: 68, height: 68, borderRadius: 34, backgroundColor: Colors.cream2 },
-  storyAddBadge: {
-    position: 'absolute', bottom: 0, right: 0,
-    width: 20, height: 20, borderRadius: 10,
-    backgroundColor: Colors.terra,
+  storyRingAdd: {
+    width: 76, height: 76, borderRadius: 38,
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: Colors.white,
+    marginBottom: Spacing.xs,
+    borderWidth: 2,
+    borderColor: Colors.terra,
+    borderStyle: 'dashed',
+    backgroundColor: Colors.terraDim,
   },
+  storyAddInner: {
+    width: 68, height: 68, borderRadius: 34,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  storyAvatar: { width: 68, height: 68, borderRadius: 34, backgroundColor: Colors.cream2 },
   storyName: { fontFamily: FontFamily.medium, fontSize: FontSize.xs, color: Colors.text, textAlign: 'center' },
 
   // Events section
@@ -1347,14 +1387,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   postHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.md, paddingVertical: Spacing.md },
-  postHeaderLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  postAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.cream2, marginRight: Spacing.md },
-  postHeaderInfo: { flex: 1 },
+  postHeaderRight: { flexDirection: 'row', alignItems: 'center' },
+  postAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.cream2, marginLeft: Spacing.md },
+  postHeaderInfo: { alignItems: 'flex-end' },
   postDogName: { fontFamily: FontFamily.bold, fontSize: FontSize.sm, color: Colors.text },
   postMeta: { fontFamily: FontFamily.regular, fontSize: FontSize.xs, color: Colors.gray, marginTop: 1 },
   postImage: { width: SCREEN_W, height: SCREEN_W, backgroundColor: Colors.cream2 },
   actionsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.md, paddingTop: Spacing.md, paddingBottom: Spacing.sm },
-  actionsLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.base },
+  actionsRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.base },
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
   actionCount: { fontFamily: FontFamily.semibold, fontSize: FontSize.sm, color: Colors.text },
   actionCountLiked: { color: Colors.terra },

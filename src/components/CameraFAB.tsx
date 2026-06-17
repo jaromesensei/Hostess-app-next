@@ -14,9 +14,10 @@ import { Colors, Shadow, Radius } from '@/theme';
 interface CameraFABProps {
   onPress?: () => void;
   bottomOffset?: number;
+  centered?: boolean;
 }
 
-export const CameraFAB: React.FC<CameraFABProps> = ({ onPress, bottomOffset = 0 }) => {
+export const CameraFAB: React.FC<CameraFABProps> = ({ onPress, bottomOffset = 0, centered = false }) => {
   const insets = useSafeAreaInsets();
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
@@ -37,6 +38,7 @@ export const CameraFAB: React.FC<CameraFABProps> = ({ onPress, bottomOffset = 0 
     <Animated.View
       style={[
         styles.fab,
+        centered ? styles.fabCentered : styles.fabRight,
         {
           bottom: bottomOffset + insets.bottom + 80,
           transform: [{ scale: scaleAnim }],
@@ -58,8 +60,15 @@ export const CameraFAB: React.FC<CameraFABProps> = ({ onPress, bottomOffset = 0 
 const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
-    right: 20,
     zIndex: 100,
+  },
+  fabRight: {
+    right: 20,
+  },
+  fabCentered: {
+    alignSelf: 'center',
+    left: '50%',
+    marginLeft: -26,
   },
   btn: {
     width: 52,
